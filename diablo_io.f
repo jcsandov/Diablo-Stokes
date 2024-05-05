@@ -387,7 +387,7 @@ C Initialize flow.
           ! between laminar and turbulent
           ENERGY_BISECTION_COUNTER = 0
 
-          DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) < 0.05D0 * DE
+          DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) > 0.05D0 * DE
      &      .AND. ENERGY_BISECTION_COUNTER < 30 )
 
             ! Slightly modifying LAMBDA to converge to the midpoint
@@ -405,7 +405,7 @@ C Initialize flow.
           
           IF ( RANK_G == 0 ) THEN
             PRINT *, 'ENERGY( LAMBDA ) CONVERGED = ', ENERGY_BISECTION
-            PRINT *, 'AFTER = ', ENERGY_BISECTION_COUNTER-1, ' ITERS '
+            PRINT *, 'AFTER = ', ENERGY_BISECTION_COUNTER, ' ITERS '
           END IF
 
           ! Time counters
@@ -1054,7 +1054,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       ! between laminar and turbulent
       ENERGY_BISECTION_COUNTER = 0
 
-      DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) < 0.05D0 * DE
+      DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) > 0.05D0 * DE
      &      .AND. ENERGY_BISECTION_COUNTER < 30 )
 
         ! Slightly modifying LAMBDA to converge to the midpoint
@@ -1072,7 +1072,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           
       IF ( RANK_G == 0 ) THEN
         PRINT *, 'ENERGY( LAMBDA ) CONVERGED = ', ENERGY_BISECTION
-        PRINT *, 'AFTER = ', ENERGY_BISECTION_COUNTER-1, ' ITERS '
+        PRINT *, 'AFTER = ', ENERGY_BISECTION_COUNTER, ' ITERS '
       END IF
 
       CALL GET_ENERGY(.FALSE.)
@@ -2411,6 +2411,11 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         IF( WRITE_HEADER ) THEN
 
+          ! Initialize the line with dashes
+          DO I = 1, 154
+           SEPARATOR(I:I) = '='
+          END DO
+
           ! Open file
           OPEN( UNIT=19,FILE=SAVPATH(:LSP)//'lambda_shift_history.dat', 
      &          status='replace')
@@ -2422,7 +2427,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &              'ENERGY_TURB_INI'  , 'ENERGY_LAM_INI '    , 
      &              'ENERGY(LAMBDA)'
           
-          WRITE(19, '(A)') SEPARATOR
           WRITE(19, '(A)') SEPARATOR
 
           CLOSE(19)
@@ -2472,6 +2476,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         END DO
 
         IF( WRITE_HEADER ) THEN
+          ! Initialize the line with dashes
+          DO I = 1, 154
+           SEPARATOR(I:I) = '='
+          END DO
 
           ! Open file
           OPEN( UNIT=19,FILE=SAVPATH(:LSP)//'sp_shifts_history.dat', 
