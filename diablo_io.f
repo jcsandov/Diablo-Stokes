@@ -470,7 +470,7 @@ C Initialize flow.
    
       END
 
-      SUBROUTINE ET_REINITIALIZE( ENERGY_RESCALING_FLAG )
+      SUBROUTINE ET_ENERGY_REINITIALIZATION( ENERGY_RESCALING_FLAG )
         
         INCLUDE 'header'
 
@@ -637,24 +637,50 @@ C Initialize flow.
         
         IF ( RANK_G == 0 ) THEN
 
+          call execute_command_line('rm -f last_ET_it_flow_field/*')
+          call execute_command_line('cp *out.h5 last_ET_it_flow_field/')
+
           SELECT CASE ( ENERGY_RESCALING_FLAG )
   
-             CASE(-1) ! Relaminarisation
-                 WRITE( INIT_SOL_FNAME, '(a, i3.3, a)') 
-     &           '0000_out_', SHIFTS_COUNT-1, '_lam.h5'
-  
-             CASE (1) ! Turbulence
+            CASE(-1) ! Relaminarisation
+
+              WRITE( INIT_SOL_FNAME, '(a, i3.3, a)') 
+     &              '0000_out_', SHIFTS_COUNT-1, '_lam.h5'
+
+
+              call execute_command_line('cp "'// trim("0000_out.h5")// 
+     &             '" "' // trim(INIT_SOL_FNAME)// '"')
+
+              ! Remove al the previous files from the destination folder
+              call execute_command_line( 
+     &            'rm -f latest_laminar_solutions/*')
+
+
+              ! Move all the solutions to latest_laminar_solutions
+              call execute_command_line( 
+     &             'mv *out.h5 latest_laminar_solutions/')
+
+            !-----------------------------------------------------------  
+            
+            CASE (1) ! Turbulence
+
                  WRITE(INIT_SOL_FNAME, '(a, i3.3, a)') 
      &           '0000_out_', SHIFTS_COUNT-1, '_turb.h5'
   
+              call execute_command_line('cp "'// trim("0000_out.h5")// 
+     &             '" "' // trim(INIT_SOL_FNAME)// '"')
+
+              ! Remove al the previous files from the destination folder
+              call execute_command_line( 
+     &            'rm -f latest_turbulent_solutions/*')
+
+
+              ! Move all the solutions to latest_turbulent_solutions
+              call execute_command_line( 
+     &             'mv *out.h5 latest_turbulent_solutions/')
+
           END SELECT
   
-          call execute_command_line('cp "' 
-     &    // trim("0000_out.h5")// '" "' //trim(INIT_SOL_FNAME)// '"')
-  
-          call execute_command_line('rm -f last_ET_it_flow_field/*')
-          call execute_command_line('mv *out.h5 last_ET_it_flow_field/')
-
         END IF
 
         ! All the processors wait until proc 0 has moved the files
@@ -667,7 +693,7 @@ C Initialize flow.
   
         RETURN
    
-      END SUBROUTINE ET_REINITIALIZE
+      END SUBROUTINE ET_ENERGY_REINITIALIZATION
 
 
       SUBROUTINE ET_LAMBDA_REINITIALIZATION( LAMBDA_RESCALING_FLAG )

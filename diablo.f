@@ -279,7 +279,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &                    ENERGY_RESCALING_FLAG
               END IF
 
-              CALL ET_REINITIALIZE( ENERGY_RESCALING_FLAG )
+              CALL ET_ENERGY_REINITIALIZATION( ENERGY_RESCALING_FLAG )
               
               ! REINITIALISE FLAG VARIABLES
               MIN_TIME_AVG_COND = .FALSE.
