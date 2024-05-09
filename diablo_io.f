@@ -457,7 +457,7 @@ C Initialize flow.
           ! associated). I also write the header of the file (that's the
           ! argument that's set to .TRUE.). Same for sp_shift_history
 
-          IF ( ET_BISECTION ) THEN
+          IF ( ET_BISECTION .AND. .NOT. RESUME_BISECTION_SIM ) THEN
             CALL WRITE_LAMBDA_SHIFT_HISTORY(.TRUE.,.FALSE.)
             CALL WRITE_SP_SHIFT_HISTORY    (.TRUE.)
           END IF
