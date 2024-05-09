@@ -388,7 +388,8 @@ C Initialize flow.
           ENERGY_BISECTION_COUNTER = 0
 
           DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) > 0.05D0 * DE
-     &      .AND. ENERGY_BISECTION_COUNTER < 30 )
+     &      .AND. ENERGY_BISECTION_COUNTER < 30  
+     &      .AND. .NOT. RESUME_BISECTION_SIM )
 
             ! Slightly modifying LAMBDA to converge to the midpoint
             IF ( ENERGY_BISECTION > ENERGY_AVG ) LAMBDA = LAMBDA - 0.05
