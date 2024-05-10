@@ -986,7 +986,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) )  // '.tar'
 
           call execute_command_line('find ./latest_turbulent_solutions/'
-     &    /' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
+     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
 
 
           ! taring laminar h5 files
