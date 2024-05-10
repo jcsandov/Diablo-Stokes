@@ -985,7 +985,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
      &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) )  // '.tar'
 
-          all execute_command_line('find ./latest_turbulent_solutions/'
+          call execute_command_line('find ./latest_turbulent_solutions/'
      &    /' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
 
 
