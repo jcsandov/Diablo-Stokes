@@ -63,7 +63,8 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
         READ(11,*) 
         READ(11,*) ET_MODE
         READ(11,*) 
-        READ(11,*) RESUME_RESCALING_SIM , RESUME_BISECTION_SIM
+        READ(11,*) RESUME_RESCALING_SIM , RESUME_BISECTION_SIM , 
+     &             SAVE_ALL_BSCTN_FFS
         READ(11,*) 
         READ(11,*) ET_RESCALING , ET_BISECTION, SET_LAMBDA_INIT
         READ(11,*) 
@@ -968,7 +969,41 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         call execute_command_line('cp "' 
      &    // trim(FNAME)// '" "' //trim("start_lam.h5")// '"')
 
+
         !---------------------------------------------------------------
+        ! Saving the h5 files before moving to a new starting point
+
+        IF ( SAVE_ALL_BSCTN_FFS ) THEN
+
+          print *, ' '
+          print *, 'Compressing h5 files'
+          print *, ' '
+
+          ! taring turbulent h5 files
+          FNAME = './latest_turbulent_solutions/turbulent_flow_field_'  
+     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
+     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+     &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) )  // '.tar'
+
+          all execute_command_line('find ./latest_turbulent_solutions/'
+     &    /' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
+
+
+          ! taring laminar h5 files
+          FNAME = './latest_laminar_solutions/laminar_flow_field_'  
+     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
+     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+     &            // TRIM ( ADJUSTL ( LAMBDA_LAM_STR      ) )  // '.tar'
+
+          call execute_command_line('find ./latest_laminar_solutions/'
+     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
+
+        END IF
+
+        !---------------------------------------------------------------
+
+        ! Wait until proc 0 has finished with the compression
+        CALL WAIT()
 
       END IF
 

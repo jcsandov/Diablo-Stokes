@@ -28,8 +28,8 @@ C   WALL_STOKES_MODE            PRESSURE_STOKES_MODE
      .TRUE.                          .FALSE.
 C   EDGE_TRACKING_MODE 
      .TRUE.               
-C   RESUME_RESCALING_SIM         RESUME_BISECTION_SIM         
-     .FALSE.                            .FALSE.            
+C   RESUME_RESCALING_SIM     RESUME_BISECTION_SIM     SAVE_ALL_BSCTN_FFS      
+     .FALSE.                        .FALSE.               .FALSE.
 C   ET_RESCALING         ET_BISECTION          SET_LAMBDA_INIT
      .FALSE.                .TRUE.                  .TRUE.
 C   LAMBDA_INIT_LAM                LAMBDA_INIT_TURB
