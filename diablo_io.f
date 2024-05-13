@@ -97,6 +97,10 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
           ! from the log files
           CALL INIT_RESUME_BISECTION()
 
+          ! LATEST_LAMBDA_LAM and LATEST_LAMBDA_TURB read from 
+          ! lambda_shifts.ind
+          LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
+
           IF (RANK_G == 0) THEN
             ! I reset save.flow.ind
             OPEN( unit = 20, file = 'save_flow.ind',  
@@ -131,9 +135,6 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
           END IF
   
           LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
-
-          ! Initialise the log file
-          IF ( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
 
         END IF
 
@@ -224,7 +225,7 @@ C Initialize FFT package (includes defining the wavenumber vectors).
 
 C Initialize energy storing arrays and counters     
         KINS(:)         = 0.D0
-        KINS_n(:)       = 0.D0 ! kinetic energy array previous iteration
+        !KINS_n(:)       = 0.D0 ! KE array from previous iteration
         ENERGIES(:)     = 0.D0
         DISSIPATIONS(:) = 0.D0
         ENERGYCOUNT     = 1
@@ -335,7 +336,7 @@ C Initialize flow.
           ! laminar energies
 
           KINS(:)         = 0.D0
-          KINS_n(:)       = 0.D0 
+          !KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -350,7 +351,7 @@ C Initialize flow.
           print *, 'ENERGY_LAM_INI = ', ENERGY_LAM_INI
 
           KINS(:)         = 0.D0
-          KINS_n(:)       = 0.D0 
+          !KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -366,7 +367,7 @@ C Initialize flow.
 
           ! I restore the arrays as they were meant to be
           KINS(:)         = 0.D0
-          KINS_n(:)       = 0.D0 
+          !KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -406,8 +407,10 @@ C Initialize flow.
           END DO
           
           IF ( RANK_G == 0 ) THEN
+
             PRINT *, 'ENERGY( LAMBDA ) CONVERGED = ', ENERGY_BISECTION
             PRINT *, 'AFTER = ', ENERGY_BISECTION_COUNTER, ' ITERS '
+
           END IF
 
           ! Time counters
@@ -415,6 +418,10 @@ C Initialize flow.
           TIME      = T0FILE
 
         END IF
+
+        ! if RESUME_BISECTION_SIM is TRUE, then KINS_n is read from 
+        ! lambda_shifts.ind. Otherwise, is set to 0.
+        if ( .NOT. RESUME_BISECTION_SIM ) KINS_n = 0.D0
 
         ! If I'm in Edge Tracking mode, it doesn't matter the INIT_E 
         ! given in input.dat. What the model is going to consider is 
@@ -461,6 +468,7 @@ C Initialize flow.
           IF ( ET_BISECTION .AND. .NOT. RESUME_BISECTION_SIM ) THEN
             CALL WRITE_LAMBDA_SHIFT_HISTORY(.TRUE.,.FALSE.)
             CALL WRITE_SP_SHIFT_HISTORY    (.TRUE.)
+            CALL WRITE_BISECTION_LOG()
           END IF
 
         END IF
@@ -600,7 +608,7 @@ C Initialize flow.
         ! Iniitial energy reinitialisation
         INIT_E = ALPHA_E * INIT_E0
   
-        IF (RANK_G.EQ.0) THEN
+        IF ( RANK_G == 0 ) THEN
           WRITE(*,*) 'INIT_E0               : ', INIT_E0
           WRITE(*,*) 'ALPHA_E Reinitialised : ', ALPHA_E          
           WRITE(*,*) 'INIT_E  Reinitialised : ', INIT_E
@@ -612,19 +620,7 @@ C Initialize flow.
         CALL GET_ENERGY(.FALSE.)
         CALL SAVE_STATS(.FALSE.)
   
-        IF ( RANK_G == 0 ) THEN
-
-          ! I write to energy_shift_history.dat, the alpha value and 
-          ! the new energy after the last energy shift
-          CALL WRITE_ENERGY_SHIFT_HISTORY(.FALSE.)
-          
-          ! I reset save.flow.ind
-          OPEN( unit = 20, file = 'save_flow.ind',  
-     &           status = 'replace', action = 'write')
-          WRITE(20, '(I0)') 0
-          CLOSE(20)
-  
-        END IF
+        IF ( RANK_G == 0 ) CALL WRITE_ENERGY_SHIFT_HISTORY(.FALSE.)
         
         ! All the processors wait until proc 0 has reinitialised 
         ! save_flow.ind
@@ -794,7 +790,7 @@ C Initialize flow.
         ! information (count and physical time) and the lambda shift
         ! information (count, current lambda value and energy values
         ! associated)
-        IF(RANK_G==0) CALL WRITE_LAMBDA_SHIFT_HISTORY(.FALSE.,.FALSE.)
+        IF( RANK_G==0 ) CALL WRITE_LAMBDA_SHIFT_HISTORY(.FALSE.,.FALSE.)
           
         ! All the processors wait until proc 0 has reinitialised 
         ! save_flow.ind
@@ -1000,12 +996,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         END IF
 
-        !---------------------------------------------------------------
-
-        ! Wait until proc 0 has finished with the compression
-        CALL WAIT()
-
       END IF
+
+      ! Wait until proc 0 has finished with the compression
+      CALL WAIT()
 
       WRITE(*,*) 'Reinitialising Flow for Edge Tracking by BISECTION'
   
@@ -1258,12 +1252,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &             action='write')
             CLOSE(unit=10)
 
-           END IF
+          END IF
   
-           SHIFTS_COUNT = SHIFTS_COUNT + 1
+          SHIFTS_COUNT = SHIFTS_COUNT + 1
     
-           ! ALPHA_E UPDATE
-           ALPHA_E = 0.5D0*(LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB)
+          ! ALPHA_E UPDATE
+          ALPHA_E = 0.5D0 * ( LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB )
 
           ! Synchronise all the procs before reinitialising
           CALL WAIT()
@@ -1363,13 +1357,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
     
           ! lambda update
           LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
-
-          ! Synchronise all the procs before reinitialising
-          CALL WAIT()
           
           ! write the bisection log files sp_shifts.ind and 
           ! lambda_shifts.ind
-          CALL WRITE_BISECTION_LOG()
+          IF ( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
+
+          ! Synchronise all the procs before reinitialising
+          CALL WAIT()
 
         END IF
    
@@ -1419,13 +1413,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           ! LAMBDA UPDATE
           LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
 
+          ! write the bisection log files sp_shifts.ind and 
+          ! lambda_shifts.ind
+          IF( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
+    
           ! Synchronise all the procs before reinitialising
           CALL WAIT()
 
-          ! write the bisection log files sp_shifts.ind and 
-          ! lambda_shifts.ind
-          CALL WRITE_BISECTION_LOG()
-    
         END IF
    
       END SUBROUTINE ET_LAMBDA_EVAL
@@ -2374,6 +2368,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         INCLUDE 'header'
 
         real*8 aux
+        integer i
 
         ! starting point shifts
         open( unit=500 , file=SAVPATH(:LSP)//'sp_shifts.ind', 
@@ -2392,6 +2387,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           read(501,*) LATEST_LAMBDA_TURB  ! real
           read(501,*) LAMBDA_LAM_FLAG     ! logical
           read(501,*) LAMBDA_TURB_FLAG    ! logical
+
+          DO i = 1 , size( KINS_n )
+            read(501,*) KINS_n(i)
+          END DO
 
         close(unit=501) 
 
@@ -2576,6 +2575,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       
         INCLUDE 'header'
 
+        integer i
+
         ! starting point shifts
         open( unit=500 , file=SAVPATH(:LSP)//'sp_shifts.ind', 
      &        form='formatted')
@@ -2586,13 +2587,17 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         ! lambda shifts 
         open( unit=501 , file=SAVPATH(:LSP)//'lambda_shifts.ind', 
-     &        form='formatted')
+     &        status='replace',form='formatted')
 
           write(501,*) LAMBDA_SHIFTS_COUNT ! integer
           write(501,*) LATEST_LAMBDA_LAM   ! real
           write(501,*) LATEST_LAMBDA_TURB  ! real
           write(501,*) LAMBDA_LAM_FLAG     ! logical
           write(501,*) LAMBDA_TURB_FLAG    ! logical
+
+          DO i = 1 , size(KINS)
+            write(501,*) KINS(i)
+          END DO
 
         close(unit=501) 
 

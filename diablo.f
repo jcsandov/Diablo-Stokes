@@ -328,7 +328,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       END DO ET ! DO WHILE ( ET_LOOP .AND. ET_COND )
  
-      IF(RANK_G==0) PRINT *, 'END OF EDGE TRACKING LOOP' 
+      IF( RANK_G == 0 ) PRINT *, 'END OF EDGE TRACKING LOOP' 
 
       ! COMPUTE TIME TAKEN
       CALL GET_DISSIPATION(.TRUE.)
