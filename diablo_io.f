@@ -1343,12 +1343,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             
             ! Remove al the previous files from the destination folder
             call 
-     &      execute_command_line('rm -f latest_turbulent_solutions/*')
+     &      execute_command_line(
+     &      'rm -f latest_turbulent_solutions/*.h5')
              
             ! Move all the solutions to latest_turbulent_solutions
             call 
-     &      execute_command_line( 
-     &      'mv *out.h5 latest_turbulent_solutions/')
+     &      execute_command_line ( 
+     &      'mv *out.h5 latest_turbulent_solutions/' )
 
           END IF
 
@@ -1399,7 +1400,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
             ! Remove al the previous files from the destination folder
             call 
-     &      execute_command_line('rm -f latest_laminar_solutions/*')
+     &      execute_command_line (
+     &      'rm -f latest_laminar_solutions/*.h5' )
              
             ! Move all the solutions to latest_laminar_solutions
             call 
