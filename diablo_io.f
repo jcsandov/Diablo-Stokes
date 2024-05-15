@@ -389,6 +389,8 @@ C Initialize flow.
           ! between laminar and turbulent
           ENERGY_BISECTION_COUNTER = 0
 
+          CALL WAIT()
+
           DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) > 0.05D0 * DE
      &      .AND. ENERGY_BISECTION_COUNTER < 30  
      &      .AND. .NOT. RESUME_BISECTION_SIM )
@@ -406,6 +408,8 @@ C Initialize flow.
 
           END DO
           
+          CALL WAIT()
+
           IF ( RANK_G == 0 ) THEN
 
             PRINT *, 'ENERGY( LAMBDA ) CONVERGED = ', ENERGY_BISECTION
@@ -450,7 +454,7 @@ C Initialize flow.
 
         END IF
 
-
+        CALL WAIT()
         ! I initialise the shift log files
         IF ( RANK_G == 0 ) THEN
 
@@ -473,12 +477,14 @@ C Initialize flow.
 
         END IF
 
+        CALL WAIT()
+
         CALL SAVE_STATS(.FALSE.)
         CALL POISSON_P_CHAN
 
         RETURN
    
-      END
+      END SUBROUTINE INITIALIZE
 
       SUBROUTINE ET_ENERGY_REINITIALIZATION( ENERGY_RESCALING_FLAG )
         
@@ -790,6 +796,9 @@ C Initialize flow.
         ! information (count and physical time) and the lambda shift
         ! information (count, current lambda value and energy values
         ! associated)
+
+        CALL WAIT()
+
         IF( RANK_G==0 ) CALL WRITE_LAMBDA_SHIFT_HISTORY(.FALSE.,.FALSE.)
           
         ! All the processors wait until proc 0 has reinitialised 
@@ -885,6 +894,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       ! I Copy the new start_turb.h5 and start_lam.h5 files from the 
       ! last couple of simulations and then I call the file reading
       ! routines
+
+      CALL WAIT()
 
       IF ( RANK_G == 0 ) THEN
 
@@ -1110,6 +1121,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       ! between laminar and turbulent
       ENERGY_BISECTION_COUNTER = 0
 
+      CALL WAIT()
+
       DO WHILE( ABS( ENERGY_BISECTION - ENERGY_AVG ) > 0.05D0 * DE
      &      .AND. ENERGY_BISECTION_COUNTER < 30 )
 
@@ -1125,6 +1138,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         ENERGY_BISECTION_COUNTER = ENERGY_BISECTION_COUNTER + 1
 
       END DO
+
+      CALL WAIT()
           
       IF ( RANK_G == 0 ) THEN
         PRINT *, 'ENERGY( LAMBDA ) CONVERGED = ', ENERGY_BISECTION
@@ -1175,9 +1190,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         ! If the simulation time (TIME-T0FILE) is less than the
         ! necessary time for averaging, I just return. This should
         ! be controlled in diablo.f anyway, but just to be sure
-        IF ( TIME-AVG_WINDOW_ES_EVAL < T0FILE ) THEN
-          RETURN
-        END IF
+        IF ( TIME-AVG_WINDOW_ES_EVAL < T0FILE ) RETURN
 
         N_TSTEPS_AVG = NINT( ( AVG_WINDOW_ES_EVAL / DELTA_T )
      &                       / SAVE_STATS_INT )
@@ -1185,9 +1198,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         ! Another caution condition. If the amount of energy values 
         ! saved are less than the one I am meant to average, then
         ! the routine just returns
-        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) THEN
-          RETURN
-        END IF
+        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) RETURN
 
         KIN_AVG = 0.D0
 
@@ -1206,6 +1217,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
     
           ! Rename kin
     
+          CALL WAIT()
+
           IF ( RANK_G == 0 ) THEN
               
             WRITE(KIN_F_NAME, '(a, i3.3, a)') "kin_", SHIFTS_COUNT, 
@@ -1239,6 +1252,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           LATEST_ALPHA_E_LAM = ALPHA_E
     
           ! Rename kin
+          
+          CALL WAIT()
+
           IF ( RANK_G == 0 ) THEN
     
             WRITE( KIN_F_NAME, '(a, i3.3, a)') 'kin_', SHIFTS_COUNT, 
@@ -1329,6 +1345,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
     
           ! Rename kin.txt and move all the solutions to the folder
           ! "latest_turbulent_solutions"
+
+          CALL WAIT()
+
           IF ( RANK_G == 0 ) THEN
               
             ! For example: kin.txt --> kin_002_005_turb.txt
@@ -1386,6 +1405,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           ! Rename kin.txt and move all the solutions to a the folder
           ! latest_laminar_solutions
+
+          CALL WAIT()
+
           IF ( RANK_G == 0 ) THEN
     
             ! For example: kin.txt --> kin_003_002_lam.txt
@@ -2426,6 +2448,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         IF( WRITE_HEADER ) THEN
 
+          print *, ' '
+          print *, 'UPDATING HEADER energy_shift_history.dat ...'
+          print *, ' '
+
           ! Open file
           OPEN( UNIT=19,FILE=SAVPATH(:LSP)//'energy_shift_history.dat', 
      &          status='replace')
@@ -2435,10 +2461,19 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           
           CLOSE(19)
 
+          print *, ' '
+          print *, 'UPDATING HEADER energy_shift_history.dat DONE'
+          print *, ' '
+
         END IF
 
         ! I write to energy_shift_history.dat, the alpha value and 
         ! the new energy after the last energy shift
+
+        print *, ' '
+        print *, 'UPDATING energy_shift_history.dat ...'
+        print *, ' '
+
         OPEN(unit=19,file=SAVPATH(:LSP)// 'energy_shift_history.dat',  
      &        status = 'old', position = 'append', action = 'write')
         
@@ -2446,6 +2481,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &        SHIFTS_COUNT, ALPHA_E, INIT_E
         
         CLOSE(19)
+
+        print *, ' '
+        print *, 'UPDATING energy_shift_history.dat DONE'
+        print *, ' '
 
         ! I reset save.flow.ind
         OPEN( unit = 20, file = SAVPATH(:LSP)//'save_flow.ind',  
@@ -2479,6 +2518,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
            SEPARATOR(I:I) = '='
           END DO
 
+          print *, ' '
+          print *, 'UPDATING HEADER lambda_shift_history.dat ...'
+          print *, ' '
+
           ! Open file
           OPEN( UNIT=19,FILE=SAVPATH(:LSP)//'lambda_shift_history.dat', 
      &          status='replace')
@@ -2494,6 +2537,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           CLOSE(19)
 
+          print *, ' '
+          print *, 'UPDATING HEADER lambda_shift_history.dat DONE'
+          print *, ' '
 
         END IF
 
@@ -2503,6 +2549,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         FMAT2 = TRIM( 'E21.15E2,2X,E21.15E2,2X,E21.15E2)')
  
         WRITE(FMAT,*) TRIM(FMAT1) // TRIM(FMAT2)
+
+        print *, ' '
+        print *, 'UPDATING lambda_shift_history.dat ...'
+        print *, ' '
 
         OPEN(unit=19,file=SAVPATH(:LSP)//'lambda_shift_history.dat',  
      &        status = 'old', position = 'append', action = 'write')
@@ -2514,6 +2564,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &                  ENERGIES(1)    
 
         CLOSE(19)
+
+        print *, ' '
+        print *, 'UPDATING lambda_shift_history.dat DONE'
+        print *, ' '
 
         ! I reset save.flow.ind
         OPEN( unit = 20, file = 'save_flow.ind',  
@@ -2544,6 +2598,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
            SEPARATOR(I:I) = '='
           END DO
 
+          print *, ' '
+          print *, 'UPDATING HEADER sp_shifts_history.dat ...'
+          print *, ' '
+
           ! Open file
           OPEN( UNIT=19,FILE=SAVPATH(:LSP)//'sp_shifts_history.dat', 
      &          status='replace')
@@ -2556,7 +2614,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           CLOSE(19)
 
+          print *, ' '
+          print *, 'UPDATING HEADER sp_shifts_history.dat DONE'
+          print *, ' '
+
         END IF
+
+        print *, ' '
+        print *, 'UPDATING sp_shifts_history.dat ...'
+        print *, ' '
 
         ! I write to energy_shift_history.dat, the alpha value and 
         ! the new energy after the last energy shift
@@ -2567,6 +2633,16 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      &        SP_SHIFTS_COUNT, T0FILE, ENERGIES(1)
         
         CLOSE(19)
+
+        print *, ' '
+        print *, 'UPDATING sp_shifts_history.dat DONE'
+        print *, ' '
+
+        ! I reset save.flow.ind
+        OPEN( unit = 20, file = 'save_flow.ind',  
+     &        status = 'replace', action = 'write')
+        WRITE(20, '(I0)') 0
+        CLOSE(20)
 
       END 
 
@@ -2579,6 +2655,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         integer i
 
+        print *, ' '
+        print *, 'UPDATING sp_shifts.ind ...'
+        print *, ' '
+
         ! starting point shifts
         open( unit=500 , file=SAVPATH(:LSP)//'sp_shifts.ind', 
      &        form='formatted')
@@ -2587,7 +2667,16 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         close(unit=500) 
 
+        print *, ' '
+        print *, 'UPDATING sp_shifts.ind DONE'
+        print *, ' '
+
         ! lambda shifts 
+
+        print *, ' '
+        print *, 'UPDATING lambda_shifts.ind ...'
+        print *, ' '
+
         open( unit=501 , file=SAVPATH(:LSP)//'lambda_shifts.ind', 
      &        status='replace',form='formatted')
 
@@ -2602,6 +2691,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           END DO
 
         close(unit=501) 
+
+        print *, ' '
+        print *, 'UPDATING lambda_shifts.ind DONE'
+        print *, ' '
 
       END 
 
