@@ -124,7 +124,10 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
           LAMBDA_LAM_FLAG       = .FALSE.
           LAMBDA_TURB_FLAG      = .FALSE.
   
-          LAMBDA_SHIFTS_COUNT   = 0
+          LAMBDA_SHIFTS_COUNT      = 0
+          LATEST_LAMBDA_LAM_COUNT  = 0
+          LATEST_LAMBDA_TURB_COUNT = 0
+          
           SP_SHIFTS_COUNT       = 0
           
           IF (.NOT. SET_LAMBDA_INIT ) THEN
@@ -225,7 +228,7 @@ C Initialize FFT package (includes defining the wavenumber vectors).
 
 C Initialize energy storing arrays and counters     
         KINS(:)         = 0.D0
-        !KINS_n(:)       = 0.D0 ! KE array from previous iteration
+        KINS_n(:)       = 0.D0 ! KE array from previous iteration
         ENERGIES(:)     = 0.D0
         DISSIPATIONS(:) = 0.D0
         ENERGYCOUNT     = 1
@@ -336,7 +339,7 @@ C Initialize flow.
           ! laminar energies
 
           KINS(:)         = 0.D0
-          !KINS_n(:)       = 0.D0 
+          KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -351,7 +354,7 @@ C Initialize flow.
           print *, 'ENERGY_LAM_INI = ', ENERGY_LAM_INI
 
           KINS(:)         = 0.D0
-          !KINS_n(:)       = 0.D0 
+          KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -367,7 +370,7 @@ C Initialize flow.
 
           ! I restore the arrays as they were meant to be
           KINS(:)         = 0.D0
-          !KINS_n(:)       = 0.D0 
+          KINS_n(:)       = 0.D0 
           ENERGIES(:)     = 0.D0
           DISSIPATIONS(:) = 0.D0
           ENERGYCOUNT     = 1
@@ -425,7 +428,7 @@ C Initialize flow.
 
         ! if RESUME_BISECTION_SIM is TRUE, then KINS_n is read from 
         ! lambda_shifts.ind. Otherwise, is set to 0.
-        if ( .NOT. RESUME_BISECTION_SIM ) KINS_n = 0.D0
+        !if ( .NOT. RESUME_BISECTION_SIM ) KINS_n = 0.D0
 
         ! If I'm in Edge Tracking mode, it doesn't matter the INIT_E 
         ! given in input.dat. What the model is going to consider is 
@@ -485,6 +488,384 @@ C Initialize flow.
         RETURN
    
       END SUBROUTINE INITIALIZE
+
+
+      !=================================================================
+      ! 
+      ! ###### #    # ###### #####   ####  #   #                        
+      ! #      ##   # #      #    # #    #  # #                         
+      ! #####  # #  # #####  #    # #        #                          
+      ! #      #  # # #      #####  #  ###   #                          
+      ! #      #   ## #      #   #  #    #   #                          
+      ! ###### #    # ###### #    #  ####    #                          
+      !                                                                 
+      !                                                                 
+      ! ###### #    #   ##   #      #    #   ##   ##### #  ####  #    # 
+      ! #      #    #  #  #  #      #    #  #  #    #   # #    # ##   # 
+      ! #####  #    # #    # #      #    # #    #   #   # #    # # #  # 
+      ! #      #    # ###### #      #    # ######   #   # #    # #  # # 
+      ! #       #  #  #    # #      #    # #    #   #   # #    # #   ## 
+      ! ######   ##   #    # ######  ####  #    #   #   #  ####  #    # 
+      !
+      !=================================================================
+                                                                 
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE ET_ES_EVAL( ENERGY_RESCALING_FLAG )
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+   
+        INCLUDE 'header'
+
+        ! I/O
+        INTEGER :: ENERGY_RESCALING_FLAG
+
+        ! Local variables
+        CHARACTER*512 :: KIN_F_NAME
+        INTEGER :: N_TSTEPS_AVG
+        REAL*8  :: KIN_AVG
+        INTEGER :: SUM_IDX
+
+        ! If the simulation time (TIME-T0FILE) is less than the
+        ! necessary time for averaging, I just return. This should
+        ! be controlled in diablo.f anyway, but just to be sure
+        IF ( TIME-AVG_WINDOW_ES_EVAL < T0FILE ) RETURN
+
+        N_TSTEPS_AVG = NINT( ( AVG_WINDOW_ES_EVAL / DELTA_T )
+     &                       / SAVE_STATS_INT )
+
+        ! Another caution condition. If the amount of energy values 
+        ! saved are less than the one I am meant to average, then
+        ! the routine just returns
+        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) RETURN
+
+        KIN_AVG = 0.D0
+
+        DO SUM_IDX = ENERGYCOUNT - N_TSTEPS_AVG, ENERGYCOUNT-1
+          KIN_AVG = KIN_AVG + KINS(SUM_IDX)
+        END DO
+
+        KIN_AVG = KIN_AVG / REAL( N_TSTEPS_AVG )
+   
+        ! TURBULENCE
+    
+        IF ( KIN_AVG > KIN_E_TURB_THRS ) THEN
+    
+          ENERGY_RESCALING_FLAG = 1
+          LATEST_ALPHA_E_TURB   = ALPHA_E
+    
+          ! Rename kin
+    
+          CALL WAIT()
+
+          IF ( RANK_G == 0 ) THEN
+              
+            WRITE( KIN_F_NAME , '(a, i3.3, a)' ) 
+     &           "kin_", SHIFTS_COUNT , "_turb.txt"
+    
+            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
+           
+            ! Create kin again as an empty file
+    
+            OPEN ( unit=10, file='kin.txt', status='replace', 
+     &             action='write')
+            CLOSE(unit=10)
+  
+          END IF
+          
+          SHIFTS_COUNT = SHIFTS_COUNT + 1
+    
+          ! ALPHA_E UPDATE
+          ALPHA_E = 0.5D0*(LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB)
+
+          ! Synchronise all the procs before reinitialising
+          CALL WAIT()
+    
+        END IF
+   
+        ! LAMINARISATION
+    
+        IF ( KIN_AVG < KIN_E_LAM_THRS ) THEN
+    
+          ENERGY_RESCALING_FLAG = -1
+          LATEST_ALPHA_E_LAM = ALPHA_E
+    
+          ! Rename kin
+          
+          CALL WAIT()
+
+          IF ( RANK_G == 0 ) THEN
+    
+            WRITE( KIN_F_NAME, '(a, i3.3, a)')  
+     &      'kin_' , SHIFTS_COUNT , '_lam.txt'
+        
+            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
+  
+            ! Create kin again as an empty file
+        
+            OPEN ( unit=10, file='kin.txt', status='replace',  
+     &             action='write')
+            CLOSE(unit=10)
+
+          END IF
+  
+          SHIFTS_COUNT = SHIFTS_COUNT + 1
+    
+          ! ALPHA_E UPDATE
+          ALPHA_E = 0.5D0 * ( LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB )
+
+          ! Synchronise all the procs before reinitialising
+          CALL WAIT()
+    
+        END IF
+   
+      END SUBROUTINE ET_ES_EVAL
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE ET_LAMBDA_EVAL( LAMBDA_RESCALING_FLAG )
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+   
+      ! This subroutine checks if a lambda shift has to be done. If so,
+      ! then it updates lamda, lambda counters, and renames kin.txt as 
+      ! kin_lam or kin_turb, depending on the evaluated regime of the 
+      ! current lambda value.
+
+        INCLUDE 'header'
+
+        ! I/O
+        INTEGER :: LAMBDA_RESCALING_FLAG !  1 --> DOWNSCALING (TURB)
+                                         ! -1 --> UPSCALING (LAM)
+        ! Local variables
+        CHARACTER*512 :: KIN_F_NAME
+        INTEGER :: N_TSTEPS_AVG
+        REAL*8  :: KIN_AVG
+        INTEGER :: SUM_IDX
+
+        ! Initialise before evaluation
+        LAMBDA_RESCALING_FLAG = 0        
+
+        ! If the simulation time (TIME-T0FILE) is less than the
+        ! necessary time for averaging, it just returns. This should
+        ! be controlled in diablo.f anyway, but just to be sure
+        IF ( TIME - T0FILE < AVG_WINDOW_ES_EVAL ) RETURN
+
+        ! # of elements to average to evaluate a lambda shift
+        N_TSTEPS_AVG = NINT( ( AVG_WINDOW_ES_EVAL / DELTA_T )
+     &                       / SAVE_STATS_INT )
+
+        ! Another caution condition. If the amount of energy values 
+        ! saved are less than the one I am meant to average, then
+        ! the routine just returns
+        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) RETURN
+
+        KIN_AVG = 0.D0
+
+        DO SUM_IDX = ENERGYCOUNT - N_TSTEPS_AVG, ENERGYCOUNT-1
+          KIN_AVG = KIN_AVG + KINS( SUM_IDX ) 
+        END DO
+
+        KIN_AVG = KIN_AVG / REAL( N_TSTEPS_AVG )
+   
+        ! TURBULENCE
+        IF ( KIN_AVG > KIN_E_TURB_THRS ) THEN
+          
+          LAMBDA_RESCALING_FLAG = 1
+
+          LAMBDA_TURB_FLAG    = .TRUE.
+          LATEST_LAMBDA_TURB  = LAMBDA
+
+          ! Here I save the amount of energy values stored the last
+          ! time a turbulent case was run
+          ENERGYCOUNT_TURB = ENERGYCOUNT-1
+
+          ! I update the latest turbulent KE time series
+          KINS_TURB(:) = KINS(:)
+    
+          ! Rename kin.txt and move all the solutions to the folder
+          ! "latest_turbulent_solutions"
+
+          CALL WAIT()
+
+          IF ( RANK_G == 0 ) THEN
+              
+            ! For example: kin.txt --> kin_002_005_turb.txt
+            WRITE( KIN_F_NAME, '(a, i3.3, a, i3.3, a)') 
+     &           "kin_" , SP_SHIFTS_COUNT , "_" , LAMBDA_SHIFTS_COUNT , 
+     &           "_turb.txt"
+    
+            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
+           
+            ! Create kin again as an empty file
+            OPEN(unit=10,file='kin.txt',status='replace',action='write')
+            CLOSE(unit=10)
+            
+            ! Remove al the previous files from the destination folder
+!            call 
+!     &      execute_command_line(
+!     &      'rm -f latest_turbulent_solutions/*.h5')
+             
+            ! Move all the solutions to latest_turbulent_solutions
+!            call 
+!     &      execute_command_line ( 
+!     &      'mv *out.h5 latest_turbulent_solutions/' )
+
+          END IF
+
+          ! lambda shift counter update
+          LATEST_LAMBDA_LAM_COUNT = LAMBDA_SHIFTS_COUNT 
+          LAMBDA_SHIFTS_COUNT     = LAMBDA_SHIFTS_COUNT + 1
+    
+          ! lambda update
+          LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
+          
+          ! write the bisection log files sp_shifts.ind and 
+          ! lambda_shifts.ind
+          IF ( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
+
+          ! Synchronise all the procs before reinitialising
+          CALL WAIT()
+
+        END IF
+   
+        ! LAMINARISATION
+    
+        IF ( KIN_AVG < KIN_E_LAM_THRS ) THEN
+    
+          LAMBDA_RESCALING_FLAG = -1
+
+          LAMBDA_LAM_FLAG    = .TRUE.
+          LATEST_LAMBDA_LAM  = LAMBDA
+    
+          ! Here I save the amount of energy values stored the last
+          ! time an laminar case was run
+          ENERGYCOUNT_LAM = ENERGYCOUNT-1
+
+          ! I update the latest turbulent KE time series
+          KINS_LAM(:) = KINS(:)
+
+          ! Rename kin.txt and move all the solutions to a the folder
+          ! latest_laminar_solutions
+
+          CALL WAIT()
+
+          IF ( RANK_G == 0 ) THEN
+    
+            ! For example: kin.txt --> kin_003_002_lam.txt
+            WRITE(KIN_F_NAME, '(a, i3.3, a, i3.3, a)') 
+     &           "kin_" , SP_SHIFTS_COUNT , "_" , LAMBDA_SHIFTS_COUNT , 
+     &           "_lam.txt"
+        
+            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
+  
+            ! Create kin again as an empty file
+            OPEN(unit=10,file='kin.txt',status='replace',action='write')
+            CLOSE(unit=10)
+
+            ! Remove al the previous files from the destination folder
+!            call 
+!     &      execute_command_line (
+!     &      'rm -f latest_laminar_solutions/*.h5' )
+             
+            ! Move all the solutions to latest_laminar_solutions
+!            call 
+!     &      execute_command_line( 
+!     &      'mv *out.h5 latest_laminar_solutions/')
+
+          END IF
+
+          LATEST_LAMBDA_TURB_COUNT = LAMBDA_SHIFTS_COUNT 
+          LAMBDA_SHIFTS_COUNT      = LAMBDA_SHIFTS_COUNT + 1
+    
+          ! LAMBDA UPDATE
+          LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
+
+          ! write the bisection log files sp_shifts.ind and 
+          ! lambda_shifts.ind
+          IF( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
+    
+          ! Synchronise all the procs before reinitialising
+          CALL WAIT()
+
+        END IF
+   
+      END SUBROUTINE ET_LAMBDA_EVAL
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE ET_SP_EVAL( SP_SHIFT_FLAG )
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+   
+      ! This subroutine evals whether to rescale lambda or not
+
+        INCLUDE 'header'
+
+        ! I/O
+        LOGICAL :: SP_SHIFT_FLAG
+
+        ! Local variables
+        CHARACTER*512 :: KIN_F_NAME
+        INTEGER :: N_TSTEPS_AVG
+        REAL*8  :: KIN_AVG
+        INTEGER :: SUM_IDX
+        INTEGER :: N_TSTEPS_COMP
+
+        REAL*8  :: DELTA_LAMBDA
+        REAL*8  :: MAX_DELTA_KIN
+
+        SP_SHIFT_FLAG = .FALSE.
+        DELTA_LAMBDA  = ABS ( LATEST_LAMBDA_TURB - LATEST_LAMBDA_LAM )
+
+        ! If I haven't generated two new series of solution to find a
+        ! a new starting point (SP), or the difference between the 
+        ! turbulent lambda and the laminar one is larger than the  
+        ! threshold, then it just returns
+        IF (.NOT. LAMBDA_TURB_FLAG .OR. .NOT. LAMBDA_LAM_FLAG .OR. 
+     &      DELTA_LAMBDA > DELTA_LAMBDA_THRS ) RETURN
+          
+        ! If the simulation time (TIME-T0FILE) is less than the
+        ! necessary time for averaging, I just return. This should
+        ! be controlled in diablo.f anyway, but just to be sure
+        IF ( TIME - T0FILE < AVG_WINDOW_ES_EVAL ) RETURN
+
+        N_TSTEPS_COMP = NINT( ( COMP_WINDOW_SPS_EVAL / DELTA_T )
+     &                       / SAVE_STATS_INT )
+
+        ! Another caution condition. If the amount of energy values 
+        ! saved are less than the one I am meant to compare, then
+        ! the routine just returns
+        IF ( ENERGYCOUNT_TURB < N_TSTEPS_COMP .OR.
+     &       ENERGYCOUNT_LAM  < N_TSTEPS_COMP ) RETURN
+
+        MAX_DELTA_KIN = MAXVAL(ABS( KINS_LAM ( 2:N_TSTEPS_COMP-1 ) -
+     &                              KINS_TURB( 2:N_TSTEPS_COMP-1 ) ) )
+
+        ! This is for us to check if the trajectories has gotten close 
+        ! enough
+        IF ( MAX_DELTA_KIN > DELTA_TRAJECTORIES_THRS ) RETURN
+
+        SP_SHIFT_FLAG = .TRUE.
+
+      END SUBROUTINE ET_SP_EVAL
+
+      !=================================================================
+      !
+      ! #####  ###### # #    # # ##### #   ##       
+      ! #    # #      # ##   # #   #   #  #  #      
+      ! #    # #####  # # #  # #   #   # #    #     
+      ! #####  #      # #  # # #   #   # ######     
+      ! #   #  #      # #   ## #   #   # #    #     
+      ! #    # ###### # #    # #   #   # #    #     
+      !                                             
+      !                                             
+      ! #      #  ####    ##   ##### #  ####  #    #
+      ! #      # #       #  #    #   # #    # ##   #
+      ! #      #  ####  #    #   #   # #    # # #  #
+      ! #      #      # ######   #   # #    # #  # #
+      ! #      # #    # #    #   #   # #    # #   ##
+      ! ###### #  ####  #    #   #   #  ####  #    #
+      !
+      !=================================================================
+
 
       SUBROUTINE ET_ENERGY_REINITIALIZATION( ENERGY_RESCALING_FLAG )
         
@@ -641,8 +1022,8 @@ C Initialize flow.
         
         IF ( RANK_G == 0 ) THEN
 
-          call execute_command_line('rm -f last_ET_it_flow_field/*')
-          call execute_command_line('cp *out.h5 last_ET_it_flow_field/')
+        !call execute_command_line('rm -f last_ET_it_flow_field/*')
+        !call execute_command_line('cp *out.h5 last_ET_it_flow_field/')
 
           SELECT CASE ( ENERGY_RESCALING_FLAG )
   
@@ -655,14 +1036,14 @@ C Initialize flow.
               call execute_command_line('cp "'// trim("0000_out.h5")// 
      &             '" "' // trim(INIT_SOL_FNAME)// '"')
 
-              ! Remove al the previous files from the destination folder
-              call execute_command_line( 
-     &            'rm -f latest_laminar_solutions/*')
+!              ! Remove al the previous files from the destination folder
+!              call execute_command_line( 
+!     &            'rm -f latest_laminar_solutions/*')
 
 
-              ! Move all the solutions to latest_laminar_solutions
-              call execute_command_line( 
-     &             'mv *out.h5 latest_laminar_solutions/')
+!              ! Move all the solutions to latest_laminar_solutions
+!              call execute_command_line( 
+!     &             'mv *out.h5 latest_laminar_solutions/')
 
             !-----------------------------------------------------------  
             
@@ -674,14 +1055,14 @@ C Initialize flow.
               call execute_command_line('cp "'// trim("0000_out.h5")// 
      &             '" "' // trim(INIT_SOL_FNAME)// '"')
 
-              ! Remove al the previous files from the destination folder
-              call execute_command_line( 
-     &            'rm -f latest_turbulent_solutions/*')
+!             ! Remove al the previous files from the destination folder
+!             call execute_command_line( 
+!     &           'rm -f latest_turbulent_solutions/*')
 
 
-              ! Move all the solutions to latest_turbulent_solutions
-              call execute_command_line( 
-     &             'mv *out.h5 latest_turbulent_solutions/')
+!             ! Move all the solutions to latest_turbulent_solutions
+!             call execute_command_line( 
+!     &            'mv *out.h5 latest_turbulent_solutions/')
 
           END SELECT
   
@@ -716,7 +1097,7 @@ C Initialize flow.
         logical RESET_TIME
         INTEGER I, J, K, N
 
-        WRITE(*,*) 'Reinitialising Flow for Edge Tracking'
+        WRITE(*,*) 'Reinitialising LAMBDA for Edge Tracking'
   
         ! Initialize storage arrays.
         DO K=0,NZ+1
@@ -839,17 +1220,27 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CHARACTER*512 LAMBDA_TURB_STR
       CHARACTER*512 LAMBDA_LAM_STR
       CHARACTER*512 SP_SHIFTS_COUNT_STR
+      CHARACTER*512 LAMBDA_SHIFTS_COUNT_STR
 
       ! I save these values in strings to copy the corresponding files
       ! afterwards
-      WRITE ( T0FILE_STR          ,       *  ) T0FILE
-      WRITE ( LAMBDA_TURB_STR     ,       *  ) LATEST_LAMBDA_TURB
-      WRITE ( LAMBDA_LAM_STR      ,       *  ) LATEST_LAMBDA_LAM
-      WRITE ( SP_SHIFTS_COUNT_STR , '(I4.4)' ) SP_SHIFTS_COUNT
+      WRITE ( T0FILE_STR                ,       *  ) T0FILE
+      WRITE ( LAMBDA_TURB_STR           ,       *  ) LATEST_LAMBDA_TURB
+      WRITE ( LAMBDA_LAM_STR            ,       *  ) LATEST_LAMBDA_LAM
+      WRITE ( SP_SHIFTS_COUNT_STR       , '(I3.3)' ) SP_SHIFTS_COUNT
+      
+      WRITE ( LTEST_LMBD_LAM_COUNT_STR  , '(I3.3)' ) 
+     &        LATEST_LAMBDA_LAM_COUNT
+      
+      WRITE ( LTEST_LMBD_TURB_COUNT_STR , '(I3.3)' ) 
+     &        LATEST_LAMBDA_TURB_COUNT
 
       ! Flags and indexes reinitialisation
 
-      LAMBDA_SHIFTS_COUNT = 0
+      LAMBDA_SHIFTS_COUNT      = 0
+      LATEST_LAMBDA_LAM_COUNT  = 0
+      LATEST_LAMBDA_TURB_COUNT = 0
+
       SP_SHIFTS_COUNT     = SP_SHIFTS_COUNT + 1
       
       LAMBDA_LAM_FLAG  = .FALSE.
@@ -935,13 +1326,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         !
 
         call execute_command_line('cp start_turb.h5 start_turb_'  
-     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
-     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) ) // '_'
+     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) ) // '_'
      &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) ) // '.h5')
 
         call execute_command_line('cp start_lam.h5 start_lam_'  
-     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
-     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) ) // '_'
+     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) ) // '_'
      &            // TRIM ( ADJUSTL ( LAMBDA_LAM_STR      ) ) // '.h5')
 
         !---------------------------------------------------------------
@@ -963,51 +1354,64 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         !
 
         ! copy the turbulent solution for the new starting point
-        FNAME = 'latest_turbulent_solutions/'//TRIM( COUNT_STR )//  
-     &          '_out.h5'
+
+!        FNAME = 'latest_turbulent_solutions/'//TRIM( COUNT_STR )//  
+!     &          '_out.h5'
+
+        FNAME = SAVPATH(:LSP)                     //
+                TRIM( SP_SHIFTS_COUNT_STR       ) // '_' //
+                TRIM( LTEST_LMBD_TURB_COUNT_STR ) // '_' //
+                TRIM( COUNT_STR                 ) // '_' //
+                'out.h5'
 
         call execute_command_line('cp "' 
      &    // trim(FNAME)// '" "' //trim("start_turb.h5")// '"')
 
         ! copy the laminar solution for the new starting point
-        FNAME = 'latest_laminar_solutions/'//TRIM( COUNT_STR )//  
-     &          '_out.h5'
+!        FNAME = 'latest_laminar_solutions/'//TRIM( COUNT_STR )//  
+!     &          '_out.h5'
+
+        FNAME = SAVPATH(:LSP)                    //
+                TRIM( SP_SHIFTS_COUNT_STR      ) // '_' //
+                TRIM( LTEST_LMBD_LAM_COUNT_STR ) // '_' //
+                TRIM( COUNT_STR                ) // '_' //
+                'out.h5'
 
         call execute_command_line('cp "' 
      &    // trim(FNAME)// '" "' //trim("start_lam.h5")// '"')
 
 
-        !---------------------------------------------------------------
-        ! Saving the h5 files before moving to a new starting point
+!        !---------------------------------------------------------------
+!        ! Saving the h5 files before moving to a new starting point
+!
+!        IF ( SAVE_ALL_BSCTN_FFS ) THEN
+!
+!          print *, ' '
+!          print *, 'Compressing h5 files'
+!          print *, ' '
+!
+!          ! taring turbulent h5 files
+!          FNAME = './latest_turbulent_solutions/turbulent_flow_field_'  
+!     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
+!     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+!     &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) )  // '.tar'
+!
+!          call execute_command_line('find ./latest_turbulent_solutions/'
+!     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
+!
+!
+!          ! taring laminar h5 files
+!          FNAME = './latest_laminar_solutions/laminar_flow_field_'  
+!     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
+!     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
+!     &            // TRIM ( ADJUSTL ( LAMBDA_LAM_STR      ) )  // '.tar'
+!
+!          call execute_command_line('find ./latest_laminar_solutions/'
+!     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
+!
+!       END IF
 
-        IF ( SAVE_ALL_BSCTN_FFS ) THEN
-
-          print *, ' '
-          print *, 'Compressing h5 files'
-          print *, ' '
-
-          ! taring turbulent h5 files
-          FNAME = './latest_turbulent_solutions/turbulent_flow_field_'  
-     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
-     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
-     &            // TRIM ( ADJUSTL ( LAMBDA_TURB_STR     ) )  // '.tar'
-
-          call execute_command_line('find ./latest_turbulent_solutions/'
-     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
-
-
-          ! taring laminar h5 files
-          FNAME = './latest_laminar_solutions/laminar_flow_field_'  
-     &            // TRIM ( ADJUSTL ( SP_SHIFTS_COUNT_STR ) )  // '_'
-     &            // TRIM ( ADJUSTL ( T0FILE_STR          ) )  // '_'
-     &            // TRIM ( ADJUSTL ( LAMBDA_LAM_STR      ) )  // '.tar'
-
-          call execute_command_line('find ./latest_laminar_solutions/'
-     &    //' -name "*.h5" -exec tar -cvzf '// TRIM( FNAME ) // ' {} +')
-
-        END IF
-
-      END IF
+      END IF ! ( RANK_G == 0 )
 
       ! Wait until proc 0 has finished with the compression
       CALL WAIT()
@@ -1171,339 +1575,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       END SUBROUTINE ET_SP_REINITIALIZATION
 
-
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE ET_ES_EVAL( ENERGY_RESCALING_FLAG )
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-   
-        INCLUDE 'header'
-
-        ! I/O
-        INTEGER :: ENERGY_RESCALING_FLAG
-
-        ! Local variables
-        CHARACTER*512 :: KIN_F_NAME
-        INTEGER :: N_TSTEPS_AVG
-        REAL*8  :: KIN_AVG
-        INTEGER :: SUM_IDX
-
-        ! If the simulation time (TIME-T0FILE) is less than the
-        ! necessary time for averaging, I just return. This should
-        ! be controlled in diablo.f anyway, but just to be sure
-        IF ( TIME-AVG_WINDOW_ES_EVAL < T0FILE ) RETURN
-
-        N_TSTEPS_AVG = NINT( ( AVG_WINDOW_ES_EVAL / DELTA_T )
-     &                       / SAVE_STATS_INT )
-
-        ! Another caution condition. If the amount of energy values 
-        ! saved are less than the one I am meant to average, then
-        ! the routine just returns
-        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) RETURN
-
-        KIN_AVG = 0.D0
-
-        DO SUM_IDX = ENERGYCOUNT - N_TSTEPS_AVG, ENERGYCOUNT-1
-          KIN_AVG = KIN_AVG + KINS(SUM_IDX)
-        END DO
-
-        KIN_AVG = KIN_AVG / REAL( N_TSTEPS_AVG )
-   
-        ! TURBULENCE
-    
-        IF ( KIN_AVG > KIN_E_TURB_THRS ) THEN
-    
-          ENERGY_RESCALING_FLAG = 1
-          LATEST_ALPHA_E_TURB   = ALPHA_E
-    
-          ! Rename kin
-    
-          CALL WAIT()
-
-          IF ( RANK_G == 0 ) THEN
-              
-            WRITE(KIN_F_NAME, '(a, i3.3, a)') "kin_", SHIFTS_COUNT, 
-     &                                        "_turb.txt"
-    
-            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
-           
-            ! Create kin again as an empty file
-    
-            OPEN ( unit=10, file='kin.txt', status='replace', 
-     &             action='write')
-            CLOSE(unit=10)
-  
-          END IF
-          
-          SHIFTS_COUNT = SHIFTS_COUNT + 1
-    
-          ! ALPHA_E UPDATE
-          ALPHA_E = 0.5D0*(LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB)
-
-          ! Synchronise all the procs before reinitialising
-          CALL WAIT()
-    
-        END IF
-   
-        ! LAMINARISATION
-    
-        IF ( KIN_AVG < KIN_E_LAM_THRS ) THEN
-    
-          ENERGY_RESCALING_FLAG = -1
-          LATEST_ALPHA_E_LAM = ALPHA_E
-    
-          ! Rename kin
-          
-          CALL WAIT()
-
-          IF ( RANK_G == 0 ) THEN
-    
-            WRITE( KIN_F_NAME, '(a, i3.3, a)') 'kin_', SHIFTS_COUNT, 
-     &                                         '_lam.txt'
-        
-            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
-  
-            ! Create kin again as an empty file
-        
-            OPEN ( unit=10, file='kin.txt', status='replace',  
-     &             action='write')
-            CLOSE(unit=10)
-
-          END IF
-  
-          SHIFTS_COUNT = SHIFTS_COUNT + 1
-    
-          ! ALPHA_E UPDATE
-          ALPHA_E = 0.5D0 * ( LATEST_ALPHA_E_LAM + LATEST_ALPHA_E_TURB )
-
-          ! Synchronise all the procs before reinitialising
-          CALL WAIT()
-    
-        END IF
-   
-      END SUBROUTINE ET_ES_EVAL
-
-
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE ET_LAMBDA_EVAL( LAMBDA_RESCALING_FLAG )
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-   
-      ! This subroutine checks if a lambda shift has to be done. If so,
-      ! then it updates lamda, lambda counters, and renames kin.txt as 
-      ! kin_lam or kin_turb, depending on the evaluated regime of the 
-      ! current lambda value.
-
-        INCLUDE 'header'
-
-        ! I/O
-        INTEGER :: LAMBDA_RESCALING_FLAG !  1 --> DOWNSCALING (TURB)
-                                         ! -1 --> UPSCALING (LAM)
-        ! Local variables
-        CHARACTER*512 :: KIN_F_NAME
-        INTEGER :: N_TSTEPS_AVG
-        REAL*8  :: KIN_AVG
-        INTEGER :: SUM_IDX
-
-        ! Initialise before evaluation
-        LAMBDA_RESCALING_FLAG = 0        
-
-        ! If the simulation time (TIME-T0FILE) is less than the
-        ! necessary time for averaging, it just returns. This should
-        ! be controlled in diablo.f anyway, but just to be sure
-        IF ( TIME - T0FILE < AVG_WINDOW_ES_EVAL ) RETURN
-
-        ! # of elements to average to evaluate a lambda shift
-        N_TSTEPS_AVG = NINT( ( AVG_WINDOW_ES_EVAL / DELTA_T )
-     &                       / SAVE_STATS_INT )
-
-        ! Another caution condition. If the amount of energy values 
-        ! saved are less than the one I am meant to average, then
-        ! the routine just returns
-        IF ( ENERGYCOUNT < N_TSTEPS_AVG ) RETURN
-
-        KIN_AVG = 0.D0
-
-        DO SUM_IDX = ENERGYCOUNT - N_TSTEPS_AVG, ENERGYCOUNT-1
-          KIN_AVG = KIN_AVG + KINS( SUM_IDX ) 
-        END DO
-
-        KIN_AVG = KIN_AVG / REAL( N_TSTEPS_AVG )
-   
-        ! TURBULENCE
-        IF ( KIN_AVG > KIN_E_TURB_THRS ) THEN
-          
-          LAMBDA_RESCALING_FLAG = 1
-
-          LAMBDA_TURB_FLAG    = .TRUE.
-          LATEST_LAMBDA_TURB  = LAMBDA
-
-          ! Here I save the amount of energy values stored the last
-          ! time a turbulent case was run
-          ENERGYCOUNT_TURB = ENERGYCOUNT-1
-
-          ! I update the latest turbulent KE time series
-          KINS_TURB(:) = KINS(:)
-    
-          ! Rename kin.txt and move all the solutions to the folder
-          ! "latest_turbulent_solutions"
-
-          CALL WAIT()
-
-          IF ( RANK_G == 0 ) THEN
-              
-            ! For example: kin.txt --> kin_002_005_turb.txt
-            WRITE(KIN_F_NAME, '(a, i3.3, a, i3.3, a)') "kin_" ,  
-     &          SP_SHIFTS_COUNT , "_" ,LAMBDA_SHIFTS_COUNT, "_turb.txt"
-    
-            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
-           
-            ! Create kin again as an empty file
-            OPEN(unit=10,file='kin.txt',status='replace',action='write')
-            CLOSE(unit=10)
-            
-            ! Remove al the previous files from the destination folder
-            call 
-     &      execute_command_line(
-     &      'rm -f latest_turbulent_solutions/*.h5')
-             
-            ! Move all the solutions to latest_turbulent_solutions
-            call 
-     &      execute_command_line ( 
-     &      'mv *out.h5 latest_turbulent_solutions/' )
-
-          END IF
-
-          ! lambda shift counter update 
-          LAMBDA_SHIFTS_COUNT = LAMBDA_SHIFTS_COUNT + 1
-    
-          ! lambda update
-          LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
-          
-          ! write the bisection log files sp_shifts.ind and 
-          ! lambda_shifts.ind
-          IF ( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
-
-          ! Synchronise all the procs before reinitialising
-          CALL WAIT()
-
-        END IF
-   
-        ! LAMINARISATION
-    
-        IF ( KIN_AVG < KIN_E_LAM_THRS ) THEN
-    
-          LAMBDA_RESCALING_FLAG = -1
-
-          LAMBDA_LAM_FLAG    = .TRUE.
-          LATEST_LAMBDA_LAM  = LAMBDA
-    
-          ! Here I save the amount of energy values stored the last
-          ! time an laminar case was run
-          ENERGYCOUNT_LAM = ENERGYCOUNT-1
-
-          ! I update the latest turbulent KE time series
-          KINS_LAM(:) = KINS(:)
-
-          ! Rename kin.txt and move all the solutions to a the folder
-          ! latest_laminar_solutions
-
-          CALL WAIT()
-
-          IF ( RANK_G == 0 ) THEN
-    
-            ! For example: kin.txt --> kin_003_002_lam.txt
-            WRITE(KIN_F_NAME, '(a, i3.3, a, i3.3, a)') "kin_" ,  
-     &          SP_SHIFTS_COUNT , "_" ,LAMBDA_SHIFTS_COUNT, "_lam.txt"
-        
-            CALL RENAME( 'kin.txt', TRIM( KIN_F_NAME ) )
-  
-            ! Create kin again as an empty file
-            OPEN(unit=10,file='kin.txt',status='replace',action='write')
-            CLOSE(unit=10)
-
-            ! Remove al the previous files from the destination folder
-            call 
-     &      execute_command_line (
-     &      'rm -f latest_laminar_solutions/*.h5' )
-             
-            ! Move all the solutions to latest_laminar_solutions
-            call 
-     &      execute_command_line( 
-     &      'mv *out.h5 latest_laminar_solutions/')
-
-          END IF
-  
-          LAMBDA_SHIFTS_COUNT = LAMBDA_SHIFTS_COUNT + 1
-    
-          ! LAMBDA UPDATE
-          LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
-
-          ! write the bisection log files sp_shifts.ind and 
-          ! lambda_shifts.ind
-          IF( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
-    
-          ! Synchronise all the procs before reinitialising
-          CALL WAIT()
-
-        END IF
-   
-      END SUBROUTINE ET_LAMBDA_EVAL
-
-
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE ET_SP_EVAL( SP_SHIFT_FLAG )
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-   
-      ! This subroutine evals whether to rescale lambda or not
-
-        INCLUDE 'header'
-
-        ! I/O
-        LOGICAL :: SP_SHIFT_FLAG
-
-        ! Local variables
-        CHARACTER*512 :: KIN_F_NAME
-        INTEGER :: N_TSTEPS_AVG
-        REAL*8  :: KIN_AVG
-        INTEGER :: SUM_IDX
-        INTEGER :: N_TSTEPS_COMP
-
-        REAL*8  :: DELTA_LAMBDA
-        REAL*8  :: MAX_DELTA_KIN
-
-        SP_SHIFT_FLAG = .FALSE.
-        DELTA_LAMBDA  = ABS ( LATEST_LAMBDA_TURB - LATEST_LAMBDA_LAM )
-
-        ! If I haven't generated two new series of solution to find a
-        ! a new starting point (SP), or the difference between the 
-        ! turbulent lambda and the laminar one is larger than the  
-        ! threshold, then it just returns
-        IF (.NOT. LAMBDA_TURB_FLAG .OR. .NOT. LAMBDA_LAM_FLAG .OR. 
-     &      DELTA_LAMBDA > DELTA_LAMBDA_THRS ) RETURN
-          
-        ! If the simulation time (TIME-T0FILE) is less than the
-        ! necessary time for averaging, I just return. This should
-        ! be controlled in diablo.f anyway, but just to be sure
-        IF ( TIME - T0FILE < AVG_WINDOW_ES_EVAL ) RETURN
-
-        N_TSTEPS_COMP = NINT( ( COMP_WINDOW_SPS_EVAL / DELTA_T )
-     &                       / SAVE_STATS_INT )
-
-        ! Another caution condition. If the amount of energy values 
-        ! saved are less than the one I am meant to compare, then
-        ! the routine just returns
-        IF ( ENERGYCOUNT_TURB < N_TSTEPS_COMP .OR.
-     &       ENERGYCOUNT_LAM  < N_TSTEPS_COMP ) RETURN
-
-        MAX_DELTA_KIN = MAXVAL(ABS( KINS_LAM ( 2:N_TSTEPS_COMP-1 ) -
-     &                              KINS_TURB( 2:N_TSTEPS_COMP-1 ) ) )
-
-        ! This is for us to check if the trajectories has gotten close 
-        ! enough
-        IF ( MAX_DELTA_KIN > DELTA_TRAJECTORIES_THRS ) RETURN
-
-        SP_SHIFT_FLAG = .TRUE.
-
-      END SUBROUTINE ET_SP_EVAL
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE ET_CHECK_STOP_COND( ET_COND )
@@ -1726,7 +1797,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER      I, J, K, N
       LOGICAL      FINAL, FLAG
       INTEGER ID
-      CHARACTER*4 STR
+      CHARACTER*512 STR
+
 
       IF (FINAL) THEN
 #ifdef HDF5
@@ -1747,7 +1819,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 #endif            
          
       ELSE
+
 #ifdef HDF5
+
         IF (SAVE_HDF5) THEN
           FNAME = SAVPATH(:LSP)//'out.h5'                
         ELSE IF (USE_MPI) THEN
@@ -1767,71 +1841,104 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
          
       END IF
       
-      IF (FNAME(LEN_TRIM(FNAME)-2:LEN_TRIM(FNAME)).EQ.".h5") THEN
+      ! check that I'm working with h5 outfiles
+      IF ( FNAME( LEN_TRIM(FNAME)-2 : LEN_TRIM(FNAME) ).EQ.".h5") THEN
       
 #ifdef HDF5
-         inquire(file=SAVPATH(:LSP)//'save_flow.ind',exist=flag)
-         if (flag) then
-            open(unit=500,file=SAVPATH(:LSP)//
-     &           'save_flow.ind',status='old'
-     &           ,form='formatted')
-            read(500,'(1I10)') id
-            close(unit=500) 
+         
+        ! check if save_flow.ind exists
+        inquire( file=SAVPATH(:LSP)//'save_flow.ind',exist=flag )
+         
+        if (flag) then
+         
+          open(unit=500,file=SAVPATH(:LSP)//
+     &         'save_flow.ind',status='old'
+     &         ,form='formatted')
+         
+          read(500,'(1I10)') id
+         
+          close(unit=500) 
+         
+          if ( ET_MODE ) then
+
+            if ( ET_RESCALING ) then
+            
+              write( str,'(I3.3,A,I0.4)') SHIFTS_COUNT//'_'//id
+            
+            end if
+
+            if (ET_BISECTION) then
+
+              write(str,'(I3.3,A,I3.3,A,I0.4)') SP_SHIFTS_COUNT//'_'//
+     &        LAMBDA_SHIFTS_COUNT//'_'//id
+            
+            end if
+
+          else ! not ET_MODE
+
             write(str,'(1I0.4)') id
-            FNAME=SAVPATH(:LSP)//str//'_'//'out.h5'
-         end if
-            call WriteHDF5(FNAME)
-         if (flag) then
-            open(unit=500,file=SAVPATH(:LSP)//
-     &           'save_flow.ind',form='formatted')
-            write(500,'(1I10)') id+1
-            close(unit=500)
-         end if
+
+          end if         
+
+          FNAME = SAVPATH(:LSP) // TRIM(str) // '_' // 'out.h5'
+         
+        end if
+         
+        call WriteHDF5(FNAME)
+         
+        if (flag) then
+           
+           ! update save_flow.ind 
+           open(unit=500 , file = SAVPATH(:LSP)//'save_flow.ind',
+     &          form='formatted')
+           write(500,'(1I10)') id+1
+           close(unit=500)
+        
+        end if
 #else
-         write(*,*) ' **** ERROR ******************************'
-         write(*,*) ' Program not compiled with HDF5 libraries.'
-         stop
+        write(*,*) ' **** ERROR ******************************'
+        write(*,*) ' Program not compiled with HDF5 libraries.'
+        stop
 #endif      
       
-      ELSE
-       IF (FINAL) THEN
-         DO N=1,N_TH
-           IF (USE_MPI) THEN
-             FNAME_TH(N) = SAVPATH(:LSP)//'diablo_th'
-     &        //CHAR(MOD(N,100)/10+48)
-     &        //CHAR(MOD(N,10)+48) //'_'//MPI_IO_NUM// '.res'             
-           ELSE
-             FNAME_TH(N)=SAVPATH(:LSP)//'diablo_th'
-     &        //CHAR(MOD(N,100)/10+48)
-     &        //CHAR(MOD(N,10)+48) // '.res'
-           END IF
+      ELSE ! not h5 output
 
-         END DO      
-      ELSE
+        IF (FINAL) THEN
+          DO N=1,N_TH
+            IF (USE_MPI) THEN
+              FNAME_TH(N) = SAVPATH(:LSP)//'diablo_th'
+     &         //CHAR(MOD(N,100)/10+48)
+     &         //CHAR(MOD(N,10)+48) //'_'//MPI_IO_NUM// '.res'             
+            ELSE
+              FNAME_TH(N)=SAVPATH(:LSP)//'diablo_th'
+     &         //CHAR(MOD(N,100)/10+48)
+     &         //CHAR(MOD(N,10)+48) // '.res'
+            END IF
+ 
+          END DO      
+        ELSE
+       
+          DO N=1,N_TH
+            IF (USE_MPI) THEN
+              FNAME_TH(N) = SAVPATH(:LSP)//'diablo_th'
+     &         //CHAR(MOD(N,100)/10+48)
+     &         //CHAR(MOD(N,10)+48) //'_'//MPI_IO_NUM// '.saved'
+            ELSE
+              FNAME_TH(N)=SAVPATH(:LSP)//'diablo_th'
+     &         //CHAR(MOD(N,100)/10+48)
+     &         //CHAR(MOD(N,10)+48) // '.saved'
+            END IF
+ 
+ 
+          END DO      
+       
+        END IF ! IF (FINAL)
       
-         DO N=1,N_TH
-           IF (USE_MPI) THEN
-             FNAME_TH(N) = SAVPATH(:LSP)//'diablo_th'
-     &        //CHAR(MOD(N,100)/10+48)
-     &        //CHAR(MOD(N,10)+48) //'_'//MPI_IO_NUM// '.saved'
-           ELSE
-             FNAME_TH(N)=SAVPATH(:LSP)//'diablo_th'
-     &        //CHAR(MOD(N,100)/10+48)
-     &        //CHAR(MOD(N,10)+48) // '.saved'
-           END IF
-
-
-         END DO      
       
-      END IF
-      
-      
-      IF (RANK_G.EQ.0) THEN
-      WRITE(6,*) 'Writing flow to ',FNAME
-      END IF
-
-      OPEN(UNIT=10,FILE=FNAME,STATUS="UNKNOWN",FORM="UNFORMATTED")
-      WRITE(10) NX, NY, NZ, NUM_PER_DIR, TIME, TIME_STEP
+        IF ( RANK_G == 0 ) WRITE(6,*) 'Writing flow to ',FNAME
+  
+        OPEN(UNIT=10,FILE=FNAME,STATUS="UNKNOWN",FORM="UNFORMATTED")
+        WRITE(10) NX, NY, NZ, NUM_PER_DIR, TIME, TIME_STEP
 
 
 
@@ -1847,12 +1954,14 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           CLOSE(11)
         END DO
 
-      CLOSE(10)
-      CLOSE(11)
-      END IF
+        CLOSE(10)
+        CLOSE(11)
+      
+      END IF ! not h5 output
 
       RETURN
-      END
+      
+      END SUBROUTINE SAVE_FLOW
       
 C----*|--.---------.---------.---------.---------.---------.---------.-|--
       SUBROUTINE GET_ENERGY(SET_ENERGY)
@@ -2412,9 +2521,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           read(501,*) LAMBDA_LAM_FLAG     ! logical
           read(501,*) LAMBDA_TURB_FLAG    ! logical
 
-          DO i = 1 , size( KINS_n )
-            read(501,*) KINS_n(i)
-          END DO
+          ! DO i = 1 , size( KINS_n )
+          !   read(501,*) KINS_n(i)
+          ! END DO
 
         close(unit=501) 
 
@@ -2686,9 +2795,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           write(501,*) LAMBDA_LAM_FLAG     ! logical
           write(501,*) LAMBDA_TURB_FLAG    ! logical
 
-          DO i = 1 , size(KINS)
-            write(501,*) KINS(i)
-          END DO
+          !DO i = 1 , size(KINS)
+          !  write(501,*) KINS(i)
+          !END DO
 
         close(unit=501) 
 

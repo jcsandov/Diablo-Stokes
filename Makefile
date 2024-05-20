@@ -17,7 +17,7 @@ COMPOPTS = -xAVX -ipo -O3 -no-prec-div -opt-prefetch
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
 #USEROPTS = -O3 -ftree-vectorize
 #USEROPTS = -align all -O3 -xHost -fpp
-USEROPTS = -fno-align-commons -cpp
+USEROPTS = - g -fno-align-commons -cpp
 
 # Location where fftw and netcdf (optional) libraries are installed
 #LINKDIR = /usr/local/lib

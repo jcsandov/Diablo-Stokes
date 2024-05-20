@@ -172,6 +172,9 @@
       REAL*8   LATEST_LAMBDA_LAM
       REAL*8   LATEST_LAMBDA_TURB
 
+      INTEGER  LATEST_LAMBDA_LAM_COUNT
+      INTEGER  LATEST_LAMBDA_TURB_COUNT
+
 
       COMMON /ET_BISECTION_VARS/ 
      &           ET_BISECTION, RESUME_BISECTION_SIM, SET_LAMBDA_INIT,
@@ -181,7 +184,9 @@
      &           DELTA_TRAJECTORIES_THRS, ENERGY_BISECT_THRS , 
      &           ENERGY_TURB_INI, ENERGY_LAM_INI, ENERGY_BISECTION, 
      &           ENERGY_AVG , LAMBDA , LATEST_LAMBDA_LAM , 
-     &           LATEST_LAMBDA_TURB
+     &           LATEST_LAMBDA_TURB,
+     &           LATEST_LAMBDA_LAM_COUNT , LATEST_LAMBDA_TURB_COUNT
+
 
 
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|! Parameters for scalar advection
