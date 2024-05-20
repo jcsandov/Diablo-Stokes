@@ -1876,21 +1876,22 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
             if ( ET_RESCALING ) then
             
-              str = ENERGY_SHIFTS_COUNT_STR//'_'//counter_str
+              str = TRIM( ENERGY_SHIFTS_COUNT_STR )//'_'//
+     &              TRIM( counter_str             )
             
             end if
 
-            if (ET_BISECTION) then
+            if ( ET_BISECTION ) then
 
-              str =  SP_SHIFTS_COUNT_STR      //'_'//
-     &               LAMBDA_SHIFTS_COUNT_STR  //'_'//
-     &               counter_str
+              str =  TRIM( SP_SHIFTS_COUNT_STR     ) //'_'//
+     &               TRIM( LAMBDA_SHIFTS_COUNT_STR ) //'_'//
+     &               TRIM( counter_str             )
             
             end if
 
           else ! not ET_MODE
 
-            write(counter_str,'(1I0.4)') id
+            write( str,'(1I0.4)' ) id
 
           end if         
 
