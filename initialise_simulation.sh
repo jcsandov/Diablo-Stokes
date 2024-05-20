@@ -72,7 +72,7 @@ cp "$source_folder/$file" .
 
 # 2. REMOVE OUTPUT FILES
 
-rm *_out*
+rm -f *_out*
 
 if [ -d last_ET_it_flow_field ]; then
     # Delete all files inside the folder

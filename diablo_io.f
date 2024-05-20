@@ -1876,17 +1876,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
             if ( ET_RESCALING ) then
             
-              write( str,'(I3.3,A,I0.4)') 
-     &        ENERGY_SHIFTS_COUNT_STR//'_'//counter_str
+              str = ENERGY_SHIFTS_COUNT_STR//'_'//counter_str
             
             end if
 
             if (ET_BISECTION) then
 
-              write(str,'(I3.3,A,I3.3,A,I0.4)') 
-     &        SP_SHIFTS_COUNT_STR      //'_'//
-     &        LAMBDA_SHIFTS_COUNT_STR  //'_'//
-     &        counter_str
+              str =  SP_SHIFTS_COUNT_STR      //'_'//
+     &               LAMBDA_SHIFTS_COUNT_STR  //'_'//
+     &               counter_str
             
             end if
 
