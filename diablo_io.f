@@ -1360,10 +1360,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 !     &          '_out.h5'
 
         FNAME = SAVPATH(:LSP)                     //
-                TRIM( SP_SHIFTS_COUNT_STR       ) // '_' //
-                TRIM( LTEST_LMBD_TURB_COUNT_STR ) // '_' //
-                TRIM( COUNT_STR                 ) // '_' //
-                'out.h5'
+     &          TRIM( SP_SHIFTS_COUNT_STR       ) // '_' //
+     &          TRIM( LTEST_LMBD_TURB_COUNT_STR ) // '_' //
+     &          TRIM( COUNT_STR                 ) // '_' //
+     &          'out.h5'
 
         call execute_command_line('cp "' 
      &    // trim(FNAME)// '" "' //trim("start_turb.h5")// '"')
@@ -1373,10 +1373,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 !     &          '_out.h5'
 
         FNAME = SAVPATH(:LSP)                    //
-                TRIM( SP_SHIFTS_COUNT_STR      ) // '_' //
-                TRIM( LTEST_LMBD_LAM_COUNT_STR ) // '_' //
-                TRIM( COUNT_STR                ) // '_' //
-                'out.h5'
+     &          TRIM( SP_SHIFTS_COUNT_STR      ) // '_' //
+     &          TRIM( LTEST_LMBD_LAM_COUNT_STR ) // '_' //
+     &          TRIM( COUNT_STR                ) // '_' //
+     &          'out.h5'
 
         call execute_command_line('cp "' 
      &    // trim(FNAME)// '" "' //trim("start_lam.h5")// '"')
