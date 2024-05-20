@@ -1804,6 +1804,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CHARACTER*512 SP_SHIFTS_COUNT_STR
       CHARACTER*512 LAMBDA_SHIFTS_COUNT_STR
 
+      CHARACTER*512 counter_str
+
       ! Shift indexes as strings
       WRITE ( ENERGY_SHIFTS_COUNT_STR , '(I3.3)' ) SHIFTS_COUNT
       WRITE ( SP_SHIFTS_COUNT_STR     , '(I3.3)' ) SP_SHIFTS_COUNT
@@ -1868,12 +1870,14 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
          
           close(unit=500) 
          
+          write( counter_str ,'(1I0.4)' ) id
+
           if ( ET_MODE ) then
 
             if ( ET_RESCALING ) then
             
               write( str,'(I3.3,A,I0.4)') 
-     &        ENERGY_SHIFTS_COUNT_STR//'_'//id
+     &        ENERGY_SHIFTS_COUNT_STR//'_'//counter_str
             
             end if
 
@@ -1882,13 +1886,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
               write(str,'(I3.3,A,I3.3,A,I0.4)') 
      &        SP_SHIFTS_COUNT_STR      //'_'//
      &        LAMBDA_SHIFTS_COUNT_STR  //'_'//
-     &        id
+     &        counter_str
             
             end if
 
           else ! not ET_MODE
 
-            write(str,'(1I0.4)') id
+            write(counter_str,'(1I0.4)') id
 
           end if         
 
