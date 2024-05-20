@@ -1220,7 +1220,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CHARACTER*512 LAMBDA_TURB_STR
       CHARACTER*512 LAMBDA_LAM_STR
       CHARACTER*512 SP_SHIFTS_COUNT_STR
-      CHARACTER*512 LAMBDA_SHIFTS_COUNT_STR
+      CHARACTER*512 LTEST_LMBD_LAM_COUNT_STR
+      CHARACTER*512 LTEST_LMBD_TURB_COUNT_STR
 
       ! I save these values in strings to copy the corresponding files
       ! afterwards
@@ -1799,6 +1800,14 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER ID
       CHARACTER*512 STR
 
+      CHARACTER*512 ENERGY_SHIFTS_COUNT_STR
+      CHARACTER*512 SP_SHIFTS_COUNT_STR
+      CHARACTER*512 LAMBDA_SHIFTS_COUNT_STR
+
+      ! Shift indexes as strings
+      WRITE ( ENERGY_SHIFTS_COUNT_STR , '(I3.3)' ) SHIFTS_COUNT
+      WRITE ( SP_SHIFTS_COUNT_STR     , '(I3.3)' ) SP_SHIFTS_COUNT
+      WRITE ( LAMBDA_SHIFTS_COUNT_STR , '(I3.3)' ) LAMBDA_SHIFTS_COUNT
 
       IF (FINAL) THEN
 #ifdef HDF5
@@ -1863,14 +1872,17 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
             if ( ET_RESCALING ) then
             
-              write( str,'(I3.3,A,I0.4)') SHIFTS_COUNT//'_'//id
+              write( str,'(I3.3,A,I0.4)') 
+     &        ENERGY_SHIFTS_COUNT_STR//'_'//id
             
             end if
 
             if (ET_BISECTION) then
 
-              write(str,'(I3.3,A,I3.3,A,I0.4)') SP_SHIFTS_COUNT//'_'//
-     &        LAMBDA_SHIFTS_COUNT//'_'//id
+              write(str,'(I3.3,A,I3.3,A,I0.4)') 
+     &        SP_SHIFTS_COUNT_STR      //'_'//
+     &        LAMBDA_SHIFTS_COUNT_STR  //'_'//
+     &        id
             
             end if
 
