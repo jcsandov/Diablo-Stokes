@@ -712,8 +712,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           END IF
 
           ! lambda shift counter update
-          LATEST_LAMBDA_LAM_COUNT = LAMBDA_SHIFTS_COUNT 
-          LAMBDA_SHIFTS_COUNT     = LAMBDA_SHIFTS_COUNT + 1
+          LATEST_LAMBDA_TURB_COUNT = LAMBDA_SHIFTS_COUNT 
+          LAMBDA_SHIFTS_COUNT      = LAMBDA_SHIFTS_COUNT + 1
     
           ! lambda update
           LAMBDA = 0.5D0 * ( LATEST_LAMBDA_LAM + LATEST_LAMBDA_TURB )
@@ -773,7 +773,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           END IF
 
-          LATEST_LAMBDA_TURB_COUNT = LAMBDA_SHIFTS_COUNT 
+          LATEST_LAMBDA_LAM_COUNT  = LAMBDA_SHIFTS_COUNT 
           LAMBDA_SHIFTS_COUNT      = LAMBDA_SHIFTS_COUNT + 1
     
           ! LAMBDA UPDATE
