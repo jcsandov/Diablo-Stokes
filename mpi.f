@@ -1035,15 +1035,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'mpif.h'
       INCLUDE 'header_mpi'
 
-      IF (RANK_G.EQ.0) THEN
+      !IF (RANK_G.EQ.0) THEN
       !WRITE(*,*) 'Waiting...'
-      END IF
+      !END IF
 
       CALL MPI_BARRIER( MPI_COMM_WORLD , IERROR )
       
-      IF (RANK_G.EQ.0) THEN
+      !IF (RANK_G.EQ.0) THEN
       !WRITE(*,*) 'Done!'
-      END IF
+      !END IF
       
       RETURN
       END   
