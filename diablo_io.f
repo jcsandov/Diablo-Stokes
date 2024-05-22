@@ -641,6 +641,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         REAL*8  :: KIN_AVG
         INTEGER :: SUM_IDX
 
+        CALL WAIT()
+
         ! Initialise before evaluation
         LAMBDA_RESCALING_FLAG = 0        
 
@@ -684,7 +686,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           ! Rename kin.txt and move all the solutions to the folder
           ! "latest_turbulent_solutions"
 
-          CALL WAIT()
+          !CALL WAIT()
 
           IF ( RANK_G == 0 ) THEN
               
@@ -723,10 +725,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           IF ( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
 
           ! Synchronise all the procs before reinitialising
-          CALL WAIT()
+          !CALL WAIT()
 
-        END IF
+        END IF ! KIN_AVG > KIN_E_TURB_THRS
    
+        ! --------------------------------------------------------------
+        !
         ! LAMINARISATION
     
         IF ( KIN_AVG < KIN_E_LAM_THRS ) THEN
@@ -746,7 +750,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           ! Rename kin.txt and move all the solutions to a the folder
           ! latest_laminar_solutions
 
-          CALL WAIT()
+          !CALL WAIT()
 
           IF ( RANK_G == 0 ) THEN
     
@@ -784,10 +788,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
           IF( RANK_G == 0 ) CALL WRITE_BISECTION_LOG()
     
           ! Synchronise all the procs before reinitialising
-          CALL WAIT()
+          !CALL WAIT()
 
-        END IF
+        END IF ! KIN_AVG < KIN_E_LAM_THRS
    
+        CALL WAIT()
+
       END SUBROUTINE ET_LAMBDA_EVAL
 
 
@@ -811,6 +817,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         REAL*8  :: DELTA_LAMBDA
         REAL*8  :: MAX_DELTA_KIN
+
+        CALL WAIT ()
 
         SP_SHIFT_FLAG = .FALSE.
         DELTA_LAMBDA  = ABS ( LATEST_LAMBDA_TURB - LATEST_LAMBDA_LAM )
@@ -844,6 +852,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         IF ( MAX_DELTA_KIN > DELTA_TRAJECTORIES_THRS ) RETURN
 
         SP_SHIFT_FLAG = .TRUE.
+
+        CALL WAIT ()
 
       END SUBROUTINE ET_SP_EVAL
 
@@ -881,6 +891,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         WRITE(*,*) 'Reinitialising Flow for Edge Tracking'
   
+        CALL WAIT()
+
         ! Initialize storage arrays.
         DO K=0,NZ+1
           DO I=0,NX+1 
@@ -1099,6 +1111,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         WRITE(*,*) 'Reinitialising LAMBDA for Edge Tracking'
   
+        CALL WAIT()
+
         ! Initialize storage arrays.
         DO K=0,NZ+1
           DO I=0,NX+1 
@@ -1191,6 +1205,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
   
         CALL POISSON_P_CHAN
   
+        CALL WAIT()
+
         RETURN
    
       END SUBROUTINE ET_LAMBDA_REINITIALIZATION
@@ -1222,6 +1238,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CHARACTER*512 SP_SHIFTS_COUNT_STR
       CHARACTER*512 LTEST_LMBD_LAM_COUNT_STR
       CHARACTER*512 LTEST_LMBD_TURB_COUNT_STR
+
+      CALL WAIT()
 
       ! I save these values in strings to copy the corresponding files
       ! afterwards
@@ -1566,12 +1584,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       END IF
         
+      CALL POISSON_P_CHAN
+  
       ! All the processors wait until proc 0 has reinitialised 
       ! save_flow.ind
       CALL WAIT()
 
-      CALL POISSON_P_CHAN
-  
       RETURN  
 
       END SUBROUTINE ET_SP_REINITIALIZATION

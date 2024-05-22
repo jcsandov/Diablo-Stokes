@@ -245,8 +245,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
               IF ( ET_BISECTION ) THEN
 
-                IF(RANK_G == 0)  PRINT *, 'CHECKING LAMBDA SHIFT CONDS'
+                IF(RANK_G == 0) PRINT * , 'CHECKING LAMBDA SHIFT CONDS'
+
                 CALL ET_LAMBDA_EVAL ( LAMBDA_RESCALING_FLAG )
+
+                IF(RANK_G == 0) PRINT * , 'LAMBDA_RESCALING_FLAG = ' ,
+     &                                     LAMBDA_RESCALING_FLAG         
 
               END IF
 
@@ -261,15 +265,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             ! OTHERWISE IT EXTIS THE LOOP TO TERMINATES THE\
             ! EXECUTION (GOTO 20)
 
-            IF ( SHIFTS_COUNT > 1 ) THEN
+            !IF ( SHIFTS_COUNT > 1 ) THEN
 
-              IF (USE_MPI) THEN
-                CALL ET_CHECK_STOP_COND_MPI( ET_COND )
-              ELSE
-                CALL ET_CHECK_STOP_COND( ET_COND )
-              END IF
+              !IF (USE_MPI) THEN
+              !  CALL ET_CHECK_STOP_COND_MPI( ET_COND )
+              !ELSE
+              !  CALL ET_CHECK_STOP_COND( ET_COND )
+              !END IF
             
-            END IF
+            !END IF
 
             IF (ET_COND) THEN
               
@@ -302,16 +306,28 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           IF ( ET_BISECTION .AND. LAMBDA_RESCALING_FLAG /= 0 ) THEN
 
+            IF (RANK_G == 0) PRINT *,'CALLING ET_SP_EVAL ...'
+
             CALL ET_SP_EVAL( SP_SHIFT_FLAG )
+            
+            IF (RANK_G == 0) PRINT *,'SP_SHIFT_FLAG = ', SP_SHIFT_FLAG
 
             ! SP_SHIFT_FLAG, shifts starting point forward
             IF ( SP_SHIFT_FLAG ) THEN
 
+              IF (RANK_G == 0) PRINT *,'ET_SP_REINITIALIZATION ...'
+              
               CALL ET_SP_REINITIALIZATION()
+              
+              IF (RANK_G == 0) PRINT *,'ET_SP_REINITIALIZATION DONE'
 
             ELSE
 
+              IF (RANK_G == 0) PRINT *,'ET_LAMBDA_REINITIALIZATION ...'
+
               CALL ET_LAMBDA_REINITIALIZATION( LAMBDA_RESCALING_FLAG )
+
+              IF (RANK_G == 0) PRINT *,'ET_LAMBDA_REINITIALIZATION DONE'
 
             END IF
 
@@ -320,8 +336,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             MIN_TIME_AVG_COND     = .FALSE.
             LAMBDA_RESCALING_FLAG = 0
 
+            ! Sychronise all the processors before exiting the TM loop
+            CALL WAIT ()
+
+            IF (RANK_G == 0) PRINT *,'STARTING A NEW TM LOOP'
+
             EXIT TM
-   
+
           END IF ! LAMBDA_RESCALING_FLAG /= 0
 
         END DO TM ! END TIME MARCHING DO
