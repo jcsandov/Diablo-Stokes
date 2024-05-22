@@ -306,28 +306,34 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
           IF ( ET_BISECTION .AND. LAMBDA_RESCALING_FLAG /= 0 ) THEN
 
-            IF (RANK_G == 0) PRINT *,'CALLING ET_SP_EVAL ...'
+            IF (RANK_G == 0) PRINT *,
+     &      'CALLING ET_SP_EVAL ...'
 
             CALL ET_SP_EVAL( SP_SHIFT_FLAG )
             
-            IF (RANK_G == 0) PRINT *,'SP_SHIFT_FLAG = ', SP_SHIFT_FLAG
+            IF (RANK_G == 0) PRINT *,
+     &      'SP_SHIFT_FLAG = ', SP_SHIFT_FLAG
 
             ! SP_SHIFT_FLAG, shifts starting point forward
             IF ( SP_SHIFT_FLAG ) THEN
 
-              IF (RANK_G == 0) PRINT *,'ET_SP_REINITIALIZATION ...'
+              IF (RANK_G == 0) PRINT * , 
+     &        'CALLING ET_SP_REINITIALIZATION ...'
               
               CALL ET_SP_REINITIALIZATION()
               
-              IF (RANK_G == 0) PRINT *,'ET_SP_REINITIALIZATION DONE'
+              IF (RANK_G == 0) PRINT * ,
+     &        'ET_SP_REINITIALIZATION DONE!'
 
             ELSE
 
-              IF (RANK_G == 0) PRINT *,'ET_LAMBDA_REINITIALIZATION ...'
+              IF (RANK_G == 0) PRINT *,
+     &        'CALLING ET_LAMBDA_REINITIALIZATION ...'
 
               CALL ET_LAMBDA_REINITIALIZATION( LAMBDA_RESCALING_FLAG )
 
-              IF (RANK_G == 0) PRINT *,'ET_LAMBDA_REINITIALIZATION DONE'
+              IF (RANK_G == 0) PRINT * ,
+     &        'ET_LAMBDA_REINITIALIZATION DONE!'
 
             END IF
 
@@ -339,7 +345,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             ! Sychronise all the processors before exiting the TM loop
             CALL WAIT ()
 
-            IF (RANK_G == 0) PRINT *,'STARTING A NEW TM LOOP'
+            IF (RANK_G == 0) THEN
+
+              PRINT *, ' '
+              PRINT *, '============================================== '
+              PRINT *, 'STARTING A NEW TM LOOP  ---------------->      '
+              PRINT *, '============================================== '
+              PRINT *, ' '
+
+            END IF
 
             EXIT TM
 
