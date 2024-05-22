@@ -127,6 +127,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         ! MAIN LOOP ( TIME-MARCHING (TM) )
         TM: DO TIME_STEP = TIME_STEP+1, TIME_STEP+N_TIME_STEPS
       
+          CALL WAIT()
+
           ! Runge-Kutta step to advance the solution in time
           DO RK_STEP=1,3                            
             CALL RK_CHAN_1         
