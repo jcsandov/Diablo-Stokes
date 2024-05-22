@@ -1036,13 +1036,13 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header_mpi'
 
       IF (RANK_G.EQ.0) THEN
-      WRITE(*,*) 'Waiting...'
+      !WRITE(*,*) 'Waiting...'
       END IF
 
       CALL MPI_BARRIER( MPI_COMM_WORLD , IERROR )
       
       IF (RANK_G.EQ.0) THEN
-      WRITE(*,*) 'Done!'
+      !WRITE(*,*) 'Done!'
       END IF
       
       RETURN
