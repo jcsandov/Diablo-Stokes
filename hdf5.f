@@ -793,7 +793,7 @@ c     Dimensions in the memory and in the file
 
       print *,'reading ', trim(FNAME_TURB)
 
-      do ith=1,3+N_TH
+      !do ith=1,3+N_TH
       do ith=0,3+N_TH
 !     Here it starts the loop--->
          select case(ith)
