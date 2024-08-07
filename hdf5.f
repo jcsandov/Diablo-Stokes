@@ -215,7 +215,6 @@ c$$$      write(130+RANK,'(1E)') TH(0:NX-1,0:NZ-1,1:NY,1)
          case (0)
             call SWAPZY(P,tmp)
             dname="P"
-         select case(ith)
          case (1)
             call SWAPZY(U1,tmp)
             dname="U"
