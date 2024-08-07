@@ -180,6 +180,10 @@ c$$$      ! -----------------------------
       call fft_xz_to_physical(CU1,U1,0,NY+1)
       call fft_xz_to_physical(CU2,U2,0,NY+1)
       call fft_xz_to_physical(CU3,U3,0,NY+1)
+
+      ! To export pressure
+      call fft_xz_to_physical(CP,P,0,NY+1)
+
       do ith=1,N_TH
          call fft_xz_to_physical(CTH(0,0,0,ith),TH(0,0,0,ith),0,NY+1)
       end do
@@ -203,9 +207,14 @@ c$$$      write(130+RANK,'(1E)') TH(0:NX-1,0:NZ-1,1:NY,1)
       call h5pset_dxpl_mpio_f(plist_id_w, H5FD_MPIO_COLLECTIVE_F,
      +        error)
 
-      do ith=1,3+N_TH
+      !do ith=1,3+N_TH
+      do ith=0,3+N_TH
 !     Here it starts the loop--->
 
+         select case(ith)
+         case (0)
+            call SWAPZY(P,tmp)
+            dname="P"
          select case(ith)
          case (1)
             call SWAPZY(U1,tmp)
@@ -407,9 +416,12 @@ c     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsm, memspace_id, 
      +                        error)
 
-      do ith=1,3+N_TH
+      !do ith=1,3+N_TH
+      do ith=0,3+N_TH
 !     Here it starts the loop--->
          select case(ith)
+         case (0)
+            dname="P"
          case (1)
             dname="U"
          case (2)
@@ -438,6 +450,8 @@ c     Dimensions in the memory and in the file
      +        mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
 
          select case(ith)
+         case (0)
+            call SWAPYZ(tmp,P)
          case (1)
             call SWAPYZ(tmp,U1)
          case (2)
@@ -474,9 +488,11 @@ c$$$      write(220+RANK,'(1E)') U3(0:NX-1,0:NZ-1,1:NY)
 c$$$      write(230+RANK,'(1E)') TH(0:NX-1,0:NZ-1,1:NY,1)
       
       ! Convert to physical space
-      call fft_xz_to_fourier(U1,CU1,0,NY+1)
-      call fft_xz_to_fourier(U2,CU2,0,NY+1)
-      call fft_xz_to_fourier(U3,CU3,0,NY+1)
+      call fft_xz_to_fourier( P  , CP  , 0 , NY+1 )
+      call fft_xz_to_fourier( U1 , CU1 , 0 , NY+1 )
+      call fft_xz_to_fourier( U2 , CU2 , 0 , NY+1 )
+      call fft_xz_to_fourier( U3 , CU3 , 0 , NY+1 )
+
       do ith=1,N_TH
          call fft_xz_to_fourier(TH(0,0,0,ith),CTH(0,0,0,ith),0,NY+1)
       end do
@@ -499,6 +515,7 @@ c$$$      write(230+RANK,'(1E)') TH(0:NX-1,0:NZ-1,1:NY,1)
       REAL*8 tmp(NX,NY,NZ)
 
       ! tmp variables to perform the linear combination
+      REAL*8 tmpP  ( NX , NY , NZ )
       REAL*8 tmpU1 ( NX , NY , NZ )
       REAL*8 tmpU2 ( NX , NY , NZ )
       REAL*8 tmpU3 ( NX , NY , NZ )
@@ -565,8 +582,9 @@ c     Dimensions in the memory and in the file
       block(2) =  NY
       offset(2) = RANK*(NY-1)
 
-
+      !=================================================================
       ! READING LAMINAR INITIAL FLOW 
+      !=================================================================
 
 !     Initialize interface
       call h5open_f(error)
@@ -635,9 +653,12 @@ c     Dimensions in the memory and in the file
 
       print *,'reading ', trim(FNAME_LAM)
 
-      do ith=1,3+N_TH
+      !do ith=1,3+N_TH
+      do ith=0,3+N_TH
 !     Here it starts the loop--->
          select case(ith)
+         case (0)
+            dname="P"
          case (1)
             dname="U"
          case (2)
@@ -666,6 +687,8 @@ c     Dimensions in the memory and in the file
      +        mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
 
          select case(ith)
+         case (0)
+            tmpP  = tmp
          case (1)
             tmpU1 = tmp
             !call SWAPYZ(tmp,U1)
@@ -700,8 +723,9 @@ c     Dimensions in the memory and in the file
       call h5close_f(error)
 
 
-
+      !=================================================================
       ! READING TURBULENT INITIAL FLOW 
+      !=================================================================
 
 !     Initialize interface
       call h5open_f(error)
@@ -771,8 +795,11 @@ c     Dimensions in the memory and in the file
       print *,'reading ', trim(FNAME_TURB)
 
       do ith=1,3+N_TH
+      do ith=0,3+N_TH
 !     Here it starts the loop--->
          select case(ith)
+         case (0)
+            dname="P"
          case (1)
             dname="U"
          case (2)
@@ -801,6 +828,9 @@ c     Dimensions in the memory and in the file
      +        mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
 
          select case(ith)
+         case (0)
+            tmp = tmpP + LAMBD * ( tmp - tmpP )
+            call SWAPYZ(tmp,P)
          case (1)
             tmp = tmpU1 + LAMBD * ( tmp - tmpU1 )
             call SWAPYZ(tmp,U1)
@@ -834,13 +864,14 @@ c     Dimensions in the memory and in the file
       call h5fclose_f(file_id, error)
       call h5close_f(error)
 
-
       print *, 'T0FILE = ', TIME
 
       ! Convert to physical space
-      call fft_xz_to_fourier(U1,CU1,0,NY+1)
-      call fft_xz_to_fourier(U2,CU2,0,NY+1)
-      call fft_xz_to_fourier(U3,CU3,0,NY+1)
+      call fft_xz_to_fourier( P  , CP  , 0 , NY+1 )
+      call fft_xz_to_fourier( U1 , CU1 , 0 , NY+1 )
+      call fft_xz_to_fourier( U2 , CU2 , 0 , NY+1 )
+      call fft_xz_to_fourier( U3 , CU3 , 0 , NY+1 )
+
       do ith=1,N_TH
          call fft_xz_to_fourier(TH(0,0,0,ith),CTH(0,0,0,ith),0,NY+1)
       end do

@@ -1201,7 +1201,11 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         CALL WAIT()
 
         ! Save the new initial condition
-        CALL SAVE_FLOW(.FALSE.)
+        ! I commented this, because at the beginning of the while loop, 
+        ! there is a CALL SAVE_FLOW, which should be the 0000_out.h5 
+        ! instead of this one
+        
+        ! CALL SAVE_FLOW(.FALSE.)
   
         CALL POISSON_P_CHAN
   
@@ -1670,6 +1674,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CHARACTER*512 FNAME_TH(N_TH)
       INTEGER I, J, K, N, NUM_PER_DIR_T
 
+      !=================================================================
+      ! DEFINING FNAME
+      !=================================================================
+
 #ifdef HDF5
       IF (READ_HDF5) THEN
         FNAME = INPATH(:LIP)//'start.h5'
@@ -1689,14 +1697,19 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       IF (RANK_G.EQ.0) THEN
         WRITE(6,*) 'Reading flow from ',FNAME
       END IF
+
+      !=================================================================
+      ! READING INITIAL SOLUTION
+      !=================================================================
+
       IF (FNAME(LEN_TRIM(FNAME)-2:LEN_TRIM(FNAME)).EQ.".h5") THEN
 #ifdef HDF5      
+
          CALL READHDF5(FNAME)
 
          ! For edge tracking time thresholds (minimum time to evaluate
          ! an energy shift and the minimum size for the average window)
          T0FILE = TIME
-
 #else
          write(*,*) ' **** ERROR ******************************'
          write(*,*) ' Program not compiled with HDF5 libraries.'
@@ -1751,6 +1764,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
          CLOSE(11)
       
       END IF
+      
+      !=================================================================
 
 C Apply initial boundary conditions, set ghost cells
       IF (USE_MPI) THEN
