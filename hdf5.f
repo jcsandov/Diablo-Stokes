@@ -177,12 +177,11 @@ c$$$      ! -----------------------------
       call h5sclose_f(tspace,error)
 
       ! Convert to physical space
-      call fft_xz_to_physical(CU1,U1,0,NY+1)
-      call fft_xz_to_physical(CU2,U2,0,NY+1)
-      call fft_xz_to_physical(CU3,U3,0,NY+1)
-
+      call fft_xz_to_physical ( CU1 , U1 , 0 , NY+1 )
+      call fft_xz_to_physical ( CU2 , U2 , 0 , NY+1 )
+      call fft_xz_to_physical ( CU3 , U3 , 0 , NY+1 )
       ! To export pressure
-      call fft_xz_to_physical(CP,P,0,NY+1)
+      call fft_xz_to_physical ( CP , P , 0 , NY+1 )
 
       do ith=1,N_TH
          call fft_xz_to_physical(CTH(0,0,0,ith),TH(0,0,0,ith),0,NY+1)
@@ -266,9 +265,11 @@ c$$$      write(130+RANK,'(1E)') TH(0:NX-1,0:NZ-1,1:NY,1)
       call h5fclose_f(file_id, error)
       call h5close_f(error)
 
-      call fft_xz_to_fourier(U1,CU1,0,NY+1)
-      call fft_xz_to_fourier(U2,CU2,0,NY+1)
-      call fft_xz_to_fourier(U3,CU3,0,NY+1)
+      call fft_xz_to_fourier ( U1 , CU1 , 0 , NY+1 )
+      call fft_xz_to_fourier ( U2 , CU2 , 0 , NY+1 )
+      call fft_xz_to_fourier ( U3 , CU3 , 0 , NY+1 )
+      call fft_xz_to_fourier ( P  , CP  , 0 , NY+1 )
+
       do ith=1,N_TH
          call fft_xz_to_fourier(TH(0,0,0,ith),CTH(0,0,0,ith),0,NY+1)
       end do
